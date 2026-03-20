@@ -11,6 +11,7 @@ import CrearDespacho from "@/pages/CrearDespacho";
 import DespachoDetalle from "@/pages/DespachoDetalle";
 import Lotes from "@/pages/Lotes";
 import Retornos from "@/pages/Retornos";
+import AlertasVencimiento from "@/pages/AlertasVencimiento";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/entrega/despachos/:id" element={<DespachoDetalle />} />
             <Route path="/entrega/lotes" element={<Lotes />} />
             <Route path="/entrega/retornos" element={<Retornos />} />
+            <Route path="/vencidos/alertas" element={<AlertasVencimiento />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
