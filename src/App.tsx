@@ -7,6 +7,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import Pedidos from "@/pages/Pedidos";
 import UsuariosPortal from "@/pages/UsuariosPortal";
 import Despachos from "@/pages/Despachos";
+import CrearDespacho from "@/pages/CrearDespacho";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/pedidos" element={<Pedidos />} />
             <Route path="/pedidos/usuarios-portal" element={<UsuariosPortal />} />
             <Route path="/entrega/despachos" element={<Despachos />} />
+            <Route path="/entrega/despachos/nuevo" element={<CrearDespacho />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
