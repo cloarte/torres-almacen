@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Pedidos from "@/pages/Pedidos";
+import UsuariosPortal from "@/pages/UsuariosPortal";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
