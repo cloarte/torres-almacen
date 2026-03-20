@@ -151,6 +151,13 @@ export default function Pedidos() {
             Entrega <ArrowUpDown className="h-3 w-3" />
           </button>
         ),
+        sortingFn: (rowA, rowB) => {
+          // Pending first, then by fechaEntrega ASC
+          const stateOrder = (s: string) => s === "PENDIENTE" ? 0 : 1;
+          const sDiff = stateOrder(rowA.original.estado) - stateOrder(rowB.original.estado);
+          if (sDiff !== 0) return sDiff;
+          return rowA.original.fechaEntrega.localeCompare(rowB.original.fechaEntrega);
+        },
         cell: ({ row }) => {
           const u = row.original.urgencia;
           const cls = urgenciaStyle(u);
