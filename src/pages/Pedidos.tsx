@@ -105,7 +105,7 @@ const urgenciaStyle = (u: string) => {
 
 export default function Pedidos() {
   const [data, setData] = useState(mockData);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "urgencia", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<Pedido | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
@@ -151,6 +151,13 @@ export default function Pedidos() {
             Entrega <ArrowUpDown className="h-3 w-3" />
           </button>
         ),
+        sortingFn: (rowA, rowB) => {
+          // Pending first, then by fechaEntrega ASC
+          const stateOrder = (s: string) => s === "PENDIENTE" ? 0 : 1;
+          const sDiff = stateOrder(rowA.original.estado) - stateOrder(rowB.original.estado);
+          if (sDiff !== 0) return sDiff;
+          return rowA.original.fechaEntrega.localeCompare(rowB.original.fechaEntrega);
+        },
         cell: ({ row }) => {
           const u = row.original.urgencia;
           const cls = urgenciaStyle(u);
