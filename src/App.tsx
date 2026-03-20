@@ -12,6 +12,7 @@ import DespachoDetalle from "@/pages/DespachoDetalle";
 import Lotes from "@/pages/Lotes";
 import Retornos from "@/pages/Retornos";
 import AlertasVencimiento from "@/pages/AlertasVencimiento";
+import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/entrega/lotes" element={<Lotes />} />
             <Route path="/entrega/retornos" element={<Retornos />} />
             <Route path="/vencidos/alertas" element={<AlertasVencimiento />} />
+            <Route path="/reportes/dashboard" element={<Dashboard />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
