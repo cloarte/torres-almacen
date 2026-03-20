@@ -20,6 +20,7 @@ const App = () => (
           <Route path="/" element={<Navigate to="/pedidos" replace />} />
           <Route element={<AppLayout />}>
             <Route path="/pedidos" element={<Pedidos />} />
+            <Route path="/pedidos/usuarios-portal" element={<UsuariosPortal />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
