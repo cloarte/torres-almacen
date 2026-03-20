@@ -105,7 +105,7 @@ const urgenciaStyle = (u: string) => {
 
 export default function Pedidos() {
   const [data, setData] = useState(mockData);
-  const [sorting, setSorting] = useState<SortingState>([]);
+  const [sorting, setSorting] = useState<SortingState>([{ id: "urgencia", desc: false }]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<Pedido | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
