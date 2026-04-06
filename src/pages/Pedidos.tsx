@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   useReactTable,
   getCoreRowModel,
@@ -18,6 +19,7 @@ import {
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  AlertTriangle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +44,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useLotes } from "@/contexts/LotesContext";
+
+interface PedidoProducto {
+  sku: string;
+  nombre: string;
+  cantidad: number;
+}
 
 interface Pedido {
   id: string;
@@ -49,39 +58,90 @@ interface Pedido {
   cliente: string;
   canal: string;
   ruta: string | null;
+  fechaPedido: string;
   fechaEntrega: string;
   urgencia: "HOY" | "MAÑANA" | string;
   estado: string;
   total: string;
   origen: "INTERNO" | "PORTAL";
   creadoPor: string | null;
+  productos: PedidoProducto[];
 }
 
 const mockData: Pedido[] = [
   {
     id: "1", numero: "PED-2026-0045", cliente: "Bodega San Martín", canal: "Tradicional",
-    ruta: "LIM-01", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
+    ruta: "LIM-01", fechaPedido: "2026-03-18", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
     total: "S/ 480", origen: "PORTAL", creadoPor: null,
+    productos: [
+      { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 10 },
+      { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 5 },
+    ],
   },
   {
     id: "2", numero: "PED-2026-0044", cliente: "Supermercados Plaza", canal: "Moderno",
-    ruta: null, fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
+    ruta: null, fechaPedido: "2026-03-18", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
     total: "S/ 1,850", origen: "INTERNO", creadoPor: "Juan López",
+    productos: [
+      { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidad: 20 },
+      { sku: "BIZ-VAN-500", nombre: "Bizcocho Vainilla 500g", cantidad: 15 },
+    ],
   },
   {
     id: "3", numero: "PED-2026-0043", cliente: "Distribuidora Lima", canal: "Directa",
-    ruta: null, fechaEntrega: "2026-03-21", urgencia: "MAÑANA", estado: "PENDIENTE",
+    ruta: null, fechaPedido: "2026-03-17", fechaEntrega: "2026-03-21", urgencia: "MAÑANA", estado: "PENDIENTE",
     total: "S/ 3,200", origen: "INTERNO", creadoPor: "Pedro Soto",
+    productos: [
+      { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 50 },
+    ],
   },
   {
     id: "4", numero: "PED-2026-0042", cliente: "Restaurant El Buen Sabor", canal: "Corporativo",
-    ruta: null, fechaEntrega: "2026-03-22", urgencia: "22/03", estado: "PENDIENTE",
+    ruta: null, fechaPedido: "2026-03-16", fechaEntrega: "2026-03-22", urgencia: "22/03", estado: "PENDIENTE",
     total: "S/ 950", origen: "PORTAL", creadoPor: null,
+    productos: [
+      { sku: "EMP-CAR-4", nombre: "Empanada de Carne x4", cantidad: 15 },
+    ],
   },
   {
     id: "5", numero: "PED-2026-0041", cliente: "Bodega La Cruz", canal: "Tradicional",
-    ruta: "PRV-01", fechaEntrega: "2026-03-23", urgencia: "23/03", estado: "PENDIENTE",
+    ruta: "PRV-01", fechaPedido: "2026-03-15", fechaEntrega: "2026-03-23", urgencia: "23/03", estado: "PENDIENTE",
     total: "S/ 720", origen: "INTERNO", creadoPor: "María Torres",
+    productos: [
+      { sku: "GAL-SOD-6", nombre: "Galleta Soda x6", cantidad: 10 },
+    ],
+  },
+  // CONFIRMADO orders
+  {
+    id: "6", numero: "PED-2026-0040", cliente: "Minimarket Los Olivos", canal: "Tradicional",
+    ruta: "LIM-01", fechaPedido: "2026-03-14", fechaEntrega: "2026-03-18", urgencia: "18/03", estado: "CONFIRMADO",
+    total: "S/ 1,100", origen: "PORTAL", creadoPor: null,
+    productos: [{ sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 30 }],
+  },
+  {
+    id: "7", numero: "PED-2026-0039", cliente: "Cevichería Marina", canal: "Corporativo",
+    ruta: null, fechaPedido: "2026-03-13", fechaEntrega: "2026-03-17", urgencia: "17/03", estado: "CONFIRMADO",
+    total: "S/ 620", origen: "INTERNO", creadoPor: "Juan López",
+    productos: [{ sku: "TOR-HEL-1K", nombre: "Torta Helada 1kg", cantidad: 8 }],
+  },
+  {
+    id: "8", numero: "PED-2026-0038", cliente: "Panadería Central", canal: "Directa",
+    ruta: "LIM-02", fechaPedido: "2026-03-12", fechaEntrega: "2026-03-16", urgencia: "16/03", estado: "LISTO_DESPACHO",
+    total: "S/ 2,400", origen: "INTERNO", creadoPor: "Pedro Soto",
+    productos: [{ sku: "PAN-FRA-10", nombre: "Pan Francés (bolsa x10)", cantidad: 40 }],
+  },
+  // CANCELADO / RECHAZADO
+  {
+    id: "9", numero: "PED-2026-0037", cliente: "Bodega El Sol", canal: "Tradicional",
+    ruta: null, fechaPedido: "2026-03-11", fechaEntrega: "2026-03-15", urgencia: "15/03", estado: "CANCELADO",
+    total: "S/ 350", origen: "PORTAL", creadoPor: null,
+    productos: [{ sku: "GAL-SOD-6", nombre: "Galleta Soda x6", cantidad: 5 }],
+  },
+  {
+    id: "10", numero: "PED-2026-0036", cliente: "Hotel Gran Vista", canal: "Corporativo",
+    ruta: null, fechaPedido: "2026-03-10", fechaEntrega: "2026-03-14", urgencia: "14/03", estado: "RECHAZADO",
+    total: "S/ 4,500", origen: "INTERNO", creadoPor: "María Torres",
+    productos: [{ sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 100 }],
   },
 ];
 
@@ -97,6 +157,14 @@ const origenColors: Record<string, string> = {
   PORTAL: "bg-teal-100 text-teal-700",
 };
 
+const estadoColors: Record<string, string> = {
+  PENDIENTE: "bg-amber-100 text-amber-700",
+  CONFIRMADO: "bg-blue-100 text-blue-700",
+  LISTO_DESPACHO: "bg-green-100 text-green-700",
+  CANCELADO: "bg-red-100 text-red-700",
+  RECHAZADO: "bg-slate-100 text-slate-500",
+};
+
 const urgenciaStyle = (u: string) => {
   if (u === "HOY") return "bg-red-100 text-red-700";
   if (u === "MAÑANA") return "bg-amber-100 text-amber-700";
@@ -104,14 +172,33 @@ const urgenciaStyle = (u: string) => {
 };
 
 export default function Pedidos() {
+  const [searchParams] = useSearchParams();
+  const estadoParam = searchParams.get("estado");
+  const isBandeja = estadoParam === "PENDIENTE";
+
   const [data, setData] = useState(mockData);
-  const [sorting, setSorting] = useState<SortingState>([{ id: "urgencia", desc: false }]);
+  const [sorting, setSorting] = useState<SortingState>(
+    isBandeja ? [{ id: "urgencia", desc: false }] : [{ id: "fechaPedido", desc: true }]
+  );
   const [globalFilter, setGlobalFilter] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<Pedido | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
 
+  const { checkFifo, applyFifo } = useLotes();
+
+  const filteredData = useMemo(() => {
+    if (!estadoParam) return data;
+    return data.filter((p) => p.estado === estadoParam);
+  }, [data, estadoParam]);
+
   const pendingCount = data.filter((p) => p.estado === "PENDIENTE").length;
+
+  // FIFO check when opening confirm dialog
+  const fifoResult = useMemo(() => {
+    if (!confirmDialog) return null;
+    return checkFifo(confirmDialog.productos);
+  }, [confirmDialog, checkFifo]);
 
   const columns = useMemo<ColumnDef<Pedido>[]>(
     () => [
@@ -144,6 +231,15 @@ export default function Pedidos() {
           <span className="text-muted-foreground">{row.original.ruta}</span>
         ) : <span className="text-slate-300">—</span>,
       },
+      ...(!isBandeja ? [{
+        accessorKey: "fechaPedido" as const,
+        header: ({ column }: any) => (
+          <button className="flex items-center gap-1" onClick={() => column.toggleSorting()}>
+            F. Pedido <ArrowUpDown className="h-3 w-3" />
+          </button>
+        ),
+        cell: ({ row }: any) => <span className="text-sm text-muted-foreground">{row.original.fechaPedido}</span>,
+      }] as ColumnDef<Pedido>[] : []),
       {
         accessorKey: "urgencia",
         header: ({ column }) => (
@@ -152,7 +248,6 @@ export default function Pedidos() {
           </button>
         ),
         sortingFn: (rowA, rowB) => {
-          // Pending first, then by fechaEntrega ASC
           const stateOrder = (s: string) => s === "PENDIENTE" ? 0 : 1;
           const sDiff = stateOrder(rowA.original.estado) - stateOrder(rowB.original.estado);
           if (sDiff !== 0) return sDiff;
@@ -173,15 +268,8 @@ export default function Pedidos() {
         header: "Estado",
         cell: ({ row }) => {
           const e = row.original.estado;
-          const map: Record<string, string> = {
-            PENDIENTE: "bg-amber-100 text-amber-700",
-            CONFIRMADO: "bg-blue-100 text-blue-700",
-            LISTO_DESPACHO: "bg-green-100 text-green-700",
-            CANCELADO: "bg-red-100 text-red-700",
-            RECHAZADO: "bg-slate-100 text-slate-500",
-          };
           return (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${map[e] || "bg-slate-100 text-slate-600"}`}>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[e] || "bg-slate-100 text-slate-600"}`}>
               {e}
             </span>
           );
@@ -243,11 +331,11 @@ export default function Pedidos() {
         },
       },
     ],
-    []
+    [isBandeja]
   );
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
@@ -261,10 +349,11 @@ export default function Pedidos() {
 
   const handleConfirm = () => {
     if (!confirmDialog) return;
+    const lotesAfectados = applyFifo(confirmDialog.productos, confirmDialog.numero);
     setData((prev) =>
       prev.map((p) => p.id === confirmDialog.id ? { ...p, estado: "CONFIRMADO" } : p)
     );
-    toast.success(`Pedido ${confirmDialog.numero} confirmado. Precios congelados.`);
+    toast.success(`Pedido ${confirmDialog.numero} confirmado. Stock actualizado en ${lotesAfectados} lote(s).`);
     setConfirmDialog(null);
   };
 
@@ -282,10 +371,19 @@ export default function Pedidos() {
     <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-semibold text-foreground">Bandeja de Pedidos</h1>
-        <p className="text-sm font-medium text-warning mt-1">
-          {pendingCount} pedidos pendientes de confirmación
-        </p>
+        <h1 className="text-2xl font-semibold text-foreground">
+          {isBandeja ? "Bandeja de Pedidos" : "Todos los Pedidos"}
+        </h1>
+        {isBandeja && (
+          <p className="text-sm font-medium text-warning mt-1">
+            {pendingCount} pedidos pendientes de confirmación
+          </p>
+        )}
+        {!isBandeja && (
+          <p className="text-sm text-muted-foreground mt-1">
+            Historial completo de pedidos
+          </p>
+        )}
       </div>
 
       {/* Search */}
@@ -299,9 +397,11 @@ export default function Pedidos() {
             onChange={(e) => setGlobalFilter(e.target.value)}
           />
         </div>
-        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-          Estado: PENDIENTE
-        </Badge>
+        {isBandeja && (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            Estado: PENDIENTE
+          </Badge>
+        )}
       </div>
 
       {/* Table */}
@@ -332,7 +432,7 @@ export default function Pedidos() {
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                  No hay pedidos pendientes.
+                  No hay pedidos.
                 </TableCell>
               </TableRow>
             )}
@@ -368,9 +468,46 @@ export default function Pedidos() {
               <br />Los precios quedarán congelados al confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          {/* FIFO stock warnings */}
+          {fifoResult && !fifoResult.success && (
+            <div className="rounded-md bg-red-50 border border-red-200 p-3 space-y-2">
+              {fifoResult.warnings.map((w) => (
+                <div key={w.sku} className="flex items-start gap-2 text-sm text-red-700">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>
+                    Stock insuficiente para <strong>{w.nombre}</strong>: necesitas {w.needed}u, disponible {w.available}u. ¿Confirmar de todas formas?
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Product summary */}
+          {confirmDialog && (
+            <div className="rounded-md bg-muted/50 p-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Productos del pedido</p>
+              {confirmDialog.productos.map((p) => (
+                <div key={p.sku} className="flex justify-between text-sm py-0.5">
+                  <span>{p.nombre}</span>
+                  <span className="font-medium">{p.cantidad}u</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirm}>Confirmar pedido</AlertDialogAction>
+            {fifoResult && !fifoResult.success ? (
+              <AlertDialogAction
+                onClick={handleConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Confirmar de todas formas
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction onClick={handleConfirm}>Confirmar pedido</AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
