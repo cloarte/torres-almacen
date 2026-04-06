@@ -8,7 +8,8 @@ export interface LoteProducto {
   cantidadOriginal: number;
   cantidadDisponible: number;
   despachado: number;
-  devuelto: number;
+  defectoEstetico: number;
+  danado: number;
 }
 
 export interface Lote {
@@ -40,22 +41,22 @@ const initialLotes: Lote[] = [
 
 const initialProductos: Record<string, LoteProducto[]> = {
   "1": [
-    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidadOriginal: 200, cantidadDisponible: 120, despachado: 80, devuelto: 0 },
-    { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidadOriginal: 100, cantidadDisponible: 90, despachado: 12, devuelto: 2 },
-    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidadOriginal: 80, cantidadDisponible: 70, despachado: 10, devuelto: 0 },
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidadOriginal: 200, cantidadDisponible: 120, despachado: 80, defectoEstetico: 0, danado: 0 },
+    { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidadOriginal: 100, cantidadDisponible: 90, despachado: 12, defectoEstetico: 2, danado: 1 },
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidadOriginal: 80, cantidadDisponible: 70, despachado: 10, defectoEstetico: 3, danado: 2 },
   ],
   "2": [
-    { sku: "BIZ-VAN-500", nombre: "Bizcocho Vainilla 500g", cantidadOriginal: 40, cantidadDisponible: 25, despachado: 16, devuelto: 1 },
-    { sku: "TOR-HEL-1K", nombre: "Torta Helada 1kg", cantidadOriginal: 30, cantidadDisponible: 20, despachado: 10, devuelto: 0 },
+    { sku: "BIZ-VAN-500", nombre: "Bizcocho Vainilla 500g", cantidadOriginal: 40, cantidadDisponible: 25, despachado: 16, defectoEstetico: 1, danado: 0 },
+    { sku: "TOR-HEL-1K", nombre: "Torta Helada 1kg", cantidadOriginal: 30, cantidadDisponible: 20, despachado: 10, defectoEstetico: 0, danado: 1 },
   ],
   "3": [
-    { sku: "PAN-FRA-10", nombre: "Pan Francés (bolsa x10)", cantidadOriginal: 50, cantidadDisponible: 8, despachado: 42, devuelto: 0 },
+    { sku: "PAN-FRA-10", nombre: "Pan Francés (bolsa x10)", cantidadOriginal: 50, cantidadDisponible: 8, despachado: 42, defectoEstetico: 0, danado: 3 },
   ],
   "4": [
-    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidadOriginal: 100, cantidadDisponible: 80, despachado: 20, devuelto: 0 },
-    { sku: "GAL-SOD-6", nombre: "Galleta Soda x6", cantidadOriginal: 60, cantidadDisponible: 50, despachado: 10, devuelto: 0 },
-    { sku: "EMP-CAR-4", nombre: "Empanada de Carne x4", cantidadOriginal: 40, cantidadDisponible: 30, despachado: 10, devuelto: 0 },
-    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidadOriginal: 30, cantidadDisponible: 20, despachado: 10, devuelto: 0 },
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidadOriginal: 100, cantidadDisponible: 80, despachado: 20, defectoEstetico: 4, danado: 1 },
+    { sku: "GAL-SOD-6", nombre: "Galleta Soda x6", cantidadOriginal: 60, cantidadDisponible: 50, despachado: 10, defectoEstetico: 0, danado: 0 },
+    { sku: "EMP-CAR-4", nombre: "Empanada de Carne x4", cantidadOriginal: 40, cantidadDisponible: 30, despachado: 10, defectoEstetico: 2, danado: 1 },
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidadOriginal: 30, cantidadDisponible: 20, despachado: 10, defectoEstetico: 1, danado: 0 },
   ],
 };
 

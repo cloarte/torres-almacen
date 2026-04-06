@@ -763,7 +763,14 @@ export default function Lotes() {
                         <TableHead className="text-[11px] font-medium text-muted-foreground uppercase text-right">Original</TableHead>
                         <TableHead className="text-[11px] font-medium text-muted-foreground uppercase text-right">Disp.</TableHead>
                         <TableHead className="text-[11px] font-medium text-muted-foreground uppercase text-right">Desp.</TableHead>
-                        <TableHead className="text-[11px] font-medium text-muted-foreground uppercase text-right">Dev.</TableHead>
+                        <TableHead className="text-[11px] font-medium text-muted-foreground uppercase text-right">
+                          <div>Defecto Estético</div>
+                          <div className="text-[9px] font-normal normal-case text-muted-foreground/70">Clasificado por Inspector</div>
+                        </TableHead>
+                        <TableHead className="text-[11px] font-medium text-muted-foreground uppercase text-right">
+                          <div>Dañado</div>
+                          <div className="text-[9px] font-normal normal-case text-muted-foreground/70">Clasificado por Inspector</div>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -778,7 +785,8 @@ export default function Lotes() {
                           <TableCell className="text-sm text-right text-muted-foreground">{p.cantidadOriginal}</TableCell>
                           <TableCell className="text-sm text-right font-medium">{p.cantidadDisponible}</TableCell>
                           <TableCell className="text-sm text-right text-muted-foreground">{p.despachado}</TableCell>
-                          <TableCell className="text-sm text-right text-muted-foreground">{p.devuelto}</TableCell>
+                          <TableCell className="text-sm text-right text-muted-foreground">{p.defectoEstetico}</TableCell>
+                          <TableCell className="text-sm text-right text-muted-foreground">{p.danado}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
