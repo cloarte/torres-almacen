@@ -50,6 +50,8 @@ interface PedidoProducto {
   sku: string;
   nombre: string;
   cantidad: number;
+  precioOriginal?: number;
+  precioEspecial?: number;
 }
 
 interface Pedido {
@@ -63,7 +65,7 @@ interface Pedido {
   urgencia: "HOY" | "MAÑANA" | string;
   estado: string;
   total: string;
-  origen: "INTERNO" | "PORTAL";
+  origen: "INTERNO" | "PORTAL" | "ESPECIAL";
   creadoPor: string | null;
   productos: PedidoProducto[];
 }
@@ -128,34 +130,44 @@ const mockData: Pedido[] = [
       { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 15 },
     ],
   },
+  // PENDIENTE — ESPECIAL (venta especial)
+  {
+    id: "6", numero: "PED-2026-0046", cliente: "Bodega El Carmen", canal: "Tradicional",
+    ruta: "LIM-02", fechaPedido: "2026-03-19", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
+    total: "S/ 340", origen: "ESPECIAL", creadoPor: "Carlos Ríos",
+    productos: [
+      { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 10, precioOriginal: 18.00, precioEspecial: 12.00 },
+      { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 20, precioOriginal: 8.50, precioEspecial: 5.50 },
+    ],
+  },
   // CONFIRMADO
   {
-    id: "6", numero: "PED-2026-0040", cliente: "Minimarket Los Olivos", canal: "Tradicional",
+    id: "7", numero: "PED-2026-0040", cliente: "Minimarket Los Olivos", canal: "Tradicional",
     ruta: "LIM-01", fechaPedido: "2026-03-14", fechaEntrega: "2026-03-18", urgencia: "18/03", estado: "CONFIRMADO",
     total: "S/ 1,100", origen: "PORTAL", creadoPor: null,
     productos: [{ sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 30 }],
   },
   {
-    id: "7", numero: "PED-2026-0039", cliente: "Cevichería Marina", canal: "Corporativo",
+    id: "8", numero: "PED-2026-0039", cliente: "Cevichería Marina", canal: "Corporativo",
     ruta: null, fechaPedido: "2026-03-13", fechaEntrega: "2026-03-17", urgencia: "17/03", estado: "CONFIRMADO",
     total: "S/ 620", origen: "INTERNO", creadoPor: "Juan López",
     productos: [{ sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 8 }],
   },
   {
-    id: "8", numero: "PED-2026-0038", cliente: "Panadería Central", canal: "Directa",
+    id: "9", numero: "PED-2026-0038", cliente: "Panadería Central", canal: "Directa",
     ruta: "LIM-02", fechaPedido: "2026-03-12", fechaEntrega: "2026-03-16", urgencia: "16/03", estado: "LISTO_DESPACHO",
     total: "S/ 2,400", origen: "INTERNO", creadoPor: "Pedro Soto",
     productos: [{ sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 40 }],
   },
   // CANCELADO / RECHAZADO
   {
-    id: "9", numero: "PED-2026-0037", cliente: "Bodega El Sol", canal: "Tradicional",
+    id: "10", numero: "PED-2026-0037", cliente: "Bodega El Sol", canal: "Tradicional",
     ruta: null, fechaPedido: "2026-03-11", fechaEntrega: "2026-03-15", urgencia: "15/03", estado: "CANCELADO",
     total: "S/ 350", origen: "PORTAL", creadoPor: null,
     productos: [{ sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 5 }],
   },
   {
-    id: "10", numero: "PED-2026-0036", cliente: "Hotel Gran Vista", canal: "Corporativo",
+    id: "11", numero: "PED-2026-0036", cliente: "Hotel Gran Vista", canal: "Corporativo",
     ruta: null, fechaPedido: "2026-03-10", fechaEntrega: "2026-03-14", urgencia: "14/03", estado: "RECHAZADO",
     total: "S/ 4,500", origen: "INTERNO", creadoPor: "María Torres",
     productos: [{ sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 100 }],
@@ -172,6 +184,7 @@ const canalColors: Record<string, string> = {
 const origenColors: Record<string, string> = {
   INTERNO: "bg-purple-100 text-purple-700",
   PORTAL: "bg-teal-100 text-teal-700",
+  ESPECIAL: "bg-purple-100 text-purple-700 font-medium",
 };
 
 const estadoColors: Record<string, string> = {
@@ -468,9 +481,12 @@ export default function Pedidos() {
                 const pedido = row.original;
                 const isExpanded = expandedRows.has(pedido.id);
                 const hasIssue = isBandeja && pedido.estado === "PENDIENTE" && pedidoHasStockIssue(pedido.productos);
+                const isEspecial = pedido.origen === "ESPECIAL";
                 const rowClass = hasIssue
                   ? "h-12 bg-red-50 border-l-4 border-red-400 hover:bg-red-100/70 transition-colors cursor-pointer"
-                  : "h-12 hover:bg-slate-50/70 transition-colors cursor-pointer";
+                  : isEspecial
+                    ? "h-12 bg-purple-50/50 border-l-4 border-purple-400 hover:bg-purple-100/50 transition-colors cursor-pointer"
+                    : "h-12 hover:bg-slate-50/70 transition-colors cursor-pointer";
 
                 return (
                   <Fragment key={row.id}>
@@ -492,6 +508,7 @@ export default function Pedidos() {
                               <thead>
                                 <tr className="text-xs text-muted-foreground uppercase">
                                   <th className="text-left py-1 font-medium">Producto</th>
+                                  {isEspecial && <th className="text-right py-1 font-medium">Precio</th>}
                                   <th className="text-right py-1 font-medium">Cantidad pedida</th>
                                   <th className="text-right py-1 font-medium">Stock disponible total</th>
                                   <th className="text-right py-1 font-medium">Estado cobertura</th>
@@ -504,6 +521,16 @@ export default function Pedidos() {
                                   return (
                                     <tr key={prod.sku} className="border-t border-slate-100">
                                       <td className="py-2 text-foreground">{prod.nombre}</td>
+                                      {isEspecial && (
+                                        <td className="py-2 text-right">
+                                          {prod.precioOriginal && prod.precioEspecial ? (
+                                            <span className="space-x-1.5">
+                                              <span className="line-through text-muted-foreground">S/{prod.precioOriginal.toFixed(2)}</span>
+                                              <span className="font-semibold text-purple-700">S/{prod.precioEspecial.toFixed(2)}</span>
+                                            </span>
+                                          ) : "—"}
+                                        </td>
+                                      )}
                                       <td className="py-2 text-right font-medium">{prod.cantidad}u</td>
                                       <td className="py-2 text-right text-muted-foreground">{stockDisp}u</td>
                                       <td className="py-2 text-right">
