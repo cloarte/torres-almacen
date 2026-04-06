@@ -189,7 +189,7 @@ export default function Lotes() {
       setLotes((prev) => [...prev, newLote]);
       setProductosPorLote((prev) => ({
         ...prev,
-        [newId]: [{ sku: row.sku, nombre: row.producto, cantidadOriginal: row.cantidad, cantidadDisponible: row.cantidad, despachado: 0, devuelto: 0 }],
+        [newId]: [{ sku: row.sku, nombre: row.producto, cantidadOriginal: row.cantidad, cantidadDisponible: row.cantidad, despachado: 0, defectoEstetico: 0, danado: 0 }],
       }));
     }
 
@@ -255,7 +255,7 @@ export default function Lotes() {
   const addProductRow = useCallback(() => {
     setEditProductos((prev) => [
       ...prev,
-      { sku: "", nombre: "", cantidadOriginal: 0, cantidadDisponible: 0, despachado: 0, devuelto: 0 },
+      { sku: "", nombre: "", cantidadOriginal: 0, cantidadDisponible: 0, despachado: 0, defectoEstetico: 0, danado: 0 },
     ]);
   }, []);
 
