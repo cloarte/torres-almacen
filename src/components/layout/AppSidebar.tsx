@@ -5,6 +5,8 @@ import {
   Truck,
   Package,
   CornerDownLeft,
+  Tag,
+  Heart,
   User,
   LogOut,
 } from "lucide-react";
@@ -36,6 +38,8 @@ const navigation: NavSection[] = [
       { label: "Despachos", icon: Truck, path: "/entrega/despachos" },
       { label: "Lotes de Producción", icon: Package, path: "/entrega/lotes" },
       { label: "Retornos", icon: CornerDownLeft, path: "/entrega/retornos" },
+      { label: "Venta Especial", icon: Tag, path: "/entrega/venta-especial" },
+      { label: "Donaciones", icon: Heart, path: "/entrega/donaciones" },
     ],
   },
   {
