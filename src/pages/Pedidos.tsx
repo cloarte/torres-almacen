@@ -77,7 +77,7 @@ const stockPorSku: Record<string, number> = {
   "EMP-POL-12": 30,
   "CRO-MAN": 0,
   "TOR-3L-1K": 15,
-  // SKUs sin stock definido se tratan como 0
+  "KEK-MAR-400": 70,
 };
 
 const mockData: Pedido[] = [
