@@ -187,6 +187,7 @@ export function LotesProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useLotes() {
   const ctx = useContext(LotesContext);
   if (!ctx) throw new Error("useLotes must be used inside LotesProvider");
