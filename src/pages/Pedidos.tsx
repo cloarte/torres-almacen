@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   useReactTable,
@@ -11,14 +11,14 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import {
-  Eye,
   CheckCircle,
-  Pencil,
   X,
   Search,
   ArrowUpDown,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   AlertTriangle,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -68,50 +68,67 @@ interface Pedido {
   productos: PedidoProducto[];
 }
 
+// Stock disponible total por SKU (mock)
+const stockPorSku: Record<string, number> = {
+  "PAN-CL-900": 120,
+  "PAN-MOL-BL": 85,
+  "EMP-POL-12": 30,
+  "CRO-MAN": 0,
+  "TOR-3L-1K": 15,
+  // SKUs sin stock definido se tratan como 0
+};
+
 const mockData: Pedido[] = [
+  // PENDIENTE — CUBIERTO (all products have enough stock)
   {
     id: "1", numero: "PED-2026-0045", cliente: "Bodega San Martín", canal: "Tradicional",
     ruta: "LIM-01", fechaPedido: "2026-03-18", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
     total: "S/ 480", origen: "PORTAL", creadoPor: null,
     productos: [
       { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 10 },
-      { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 5 },
+      { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 20 },
     ],
   },
+  // PENDIENTE — CUBIERTO
   {
     id: "2", numero: "PED-2026-0044", cliente: "Supermercados Plaza", canal: "Moderno",
     ruta: null, fechaPedido: "2026-03-18", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
     total: "S/ 1,850", origen: "INTERNO", creadoPor: "Juan López",
     productos: [
-      { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidad: 20 },
-      { sku: "BIZ-VAN-500", nombre: "Bizcocho Vainilla 500g", cantidad: 15 },
+      { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 10 },
+      { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 5 },
     ],
   },
+  // PENDIENTE — SIN STOCK (Croissant = 0u)
   {
     id: "3", numero: "PED-2026-0043", cliente: "Distribuidora Lima", canal: "Directa",
     ruta: null, fechaPedido: "2026-03-17", fechaEntrega: "2026-03-21", urgencia: "MAÑANA", estado: "PENDIENTE",
     total: "S/ 3,200", origen: "INTERNO", creadoPor: "Pedro Soto",
     productos: [
       { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 50 },
+      { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 40 },
     ],
   },
+  // PENDIENTE — SIN STOCK (Torta 15u disponible, piden 25)
   {
     id: "4", numero: "PED-2026-0042", cliente: "Restaurant El Buen Sabor", canal: "Corporativo",
     ruta: null, fechaPedido: "2026-03-16", fechaEntrega: "2026-03-22", urgencia: "22/03", estado: "PENDIENTE",
     total: "S/ 950", origen: "PORTAL", creadoPor: null,
     productos: [
-      { sku: "EMP-CAR-4", nombre: "Empanada de Carne x4", cantidad: 15 },
+      { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 25 },
+      { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 10 },
     ],
   },
+  // PENDIENTE — CUBIERTO
   {
     id: "5", numero: "PED-2026-0041", cliente: "Bodega La Cruz", canal: "Tradicional",
     ruta: "PRV-01", fechaPedido: "2026-03-15", fechaEntrega: "2026-03-23", urgencia: "23/03", estado: "PENDIENTE",
     total: "S/ 720", origen: "INTERNO", creadoPor: "María Torres",
     productos: [
-      { sku: "GAL-SOD-6", nombre: "Galleta Soda x6", cantidad: 10 },
+      { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 15 },
     ],
   },
-  // CONFIRMADO orders
+  // CONFIRMADO
   {
     id: "6", numero: "PED-2026-0040", cliente: "Minimarket Los Olivos", canal: "Tradicional",
     ruta: "LIM-01", fechaPedido: "2026-03-14", fechaEntrega: "2026-03-18", urgencia: "18/03", estado: "CONFIRMADO",
@@ -122,20 +139,20 @@ const mockData: Pedido[] = [
     id: "7", numero: "PED-2026-0039", cliente: "Cevichería Marina", canal: "Corporativo",
     ruta: null, fechaPedido: "2026-03-13", fechaEntrega: "2026-03-17", urgencia: "17/03", estado: "CONFIRMADO",
     total: "S/ 620", origen: "INTERNO", creadoPor: "Juan López",
-    productos: [{ sku: "TOR-HEL-1K", nombre: "Torta Helada 1kg", cantidad: 8 }],
+    productos: [{ sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 8 }],
   },
   {
     id: "8", numero: "PED-2026-0038", cliente: "Panadería Central", canal: "Directa",
     ruta: "LIM-02", fechaPedido: "2026-03-12", fechaEntrega: "2026-03-16", urgencia: "16/03", estado: "LISTO_DESPACHO",
     total: "S/ 2,400", origen: "INTERNO", creadoPor: "Pedro Soto",
-    productos: [{ sku: "PAN-FRA-10", nombre: "Pan Francés (bolsa x10)", cantidad: 40 }],
+    productos: [{ sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 40 }],
   },
   // CANCELADO / RECHAZADO
   {
     id: "9", numero: "PED-2026-0037", cliente: "Bodega El Sol", canal: "Tradicional",
     ruta: null, fechaPedido: "2026-03-11", fechaEntrega: "2026-03-15", urgencia: "15/03", estado: "CANCELADO",
     total: "S/ 350", origen: "PORTAL", creadoPor: null,
-    productos: [{ sku: "GAL-SOD-6", nombre: "Galleta Soda x6", cantidad: 5 }],
+    productos: [{ sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 5 }],
   },
   {
     id: "10", numero: "PED-2026-0036", cliente: "Hotel Gran Vista", canal: "Corporativo",
@@ -171,6 +188,14 @@ const urgenciaStyle = (u: string) => {
   return "";
 };
 
+function getStockDisponible(sku: string): number {
+  return stockPorSku[sku] ?? 0;
+}
+
+function pedidoHasStockIssue(productos: PedidoProducto[]): boolean {
+  return productos.some((p) => getStockDisponible(p.sku) < p.cantidad);
+}
+
 export default function Pedidos() {
   const [searchParams] = useSearchParams();
   const estadoParam = searchParams.get("estado");
@@ -184,8 +209,18 @@ export default function Pedidos() {
   const [confirmDialog, setConfirmDialog] = useState<Pedido | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
   const { checkFifo, applyFifo } = useLotes();
+
+  const toggleRow = (id: string) => {
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const filteredData = useMemo(() => {
     if (!estadoParam) return data;
@@ -194,7 +229,6 @@ export default function Pedidos() {
 
   const pendingCount = data.filter((p) => p.estado === "PENDIENTE").length;
 
-  // FIFO check when opening confirm dialog
   const fifoResult = useMemo(() => {
     if (!confirmDialog) return null;
     return checkFifo(confirmDialog.productos);
@@ -202,6 +236,22 @@ export default function Pedidos() {
 
   const columns = useMemo<ColumnDef<Pedido>[]>(
     () => [
+      ...(isBandeja ? [{
+        id: "expander",
+        header: () => null,
+        cell: ({ row }: any) => {
+          const isExpanded = expandedRows.has(row.original.id);
+          return (
+            <button
+              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
+              onClick={(e) => { e.stopPropagation(); toggleRow(row.original.id); }}
+            >
+              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          );
+        },
+        size: 40,
+      }] as ColumnDef<Pedido>[] : []),
       {
         accessorKey: "numero",
         header: ({ column }) => (
@@ -303,24 +353,18 @@ export default function Pedidos() {
           const p = row.original;
           if (p.estado !== "PENDIENTE") return null;
           return (
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalle">
-                <Eye className="h-4 w-4" />
-              </Button>
+            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
               <Button
                 variant="ghost" size="icon"
-                className="h-8 w-8 text-success hover:text-success"
+                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
                 title="Confirmar"
                 onClick={() => setConfirmDialog(p)}
               >
                 <CheckCircle className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Modificar">
-                <Pencil className="h-4 w-4" />
-              </Button>
               <Button
                 variant="ghost" size="icon"
-                className="h-8 w-8 text-danger hover:text-danger"
+                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                 title="Rechazar"
                 onClick={() => { setRejectMotivo(""); setRejectDialog(p); }}
               >
@@ -331,7 +375,7 @@ export default function Pedidos() {
         },
       },
     ],
-    [isBandeja]
+    [isBandeja, expandedRows]
   );
 
   const table = useReactTable({
@@ -420,15 +464,67 @@ export default function Pedidos() {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} className="h-12 hover:bg-slate-50/70 transition-colors">
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="text-sm">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table.getRowModel().rows.map((row) => {
+                const pedido = row.original;
+                const isExpanded = expandedRows.has(pedido.id);
+                const hasIssue = isBandeja && pedido.estado === "PENDIENTE" && pedidoHasStockIssue(pedido.productos);
+                const rowClass = hasIssue
+                  ? "h-12 bg-red-50 border-l-4 border-red-400 hover:bg-red-100/70 transition-colors cursor-pointer"
+                  : "h-12 hover:bg-slate-50/70 transition-colors cursor-pointer";
+
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow
+                      className={rowClass}
+                      onClick={() => isBandeja && toggleRow(pedido.id)}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id} className="text-sm">
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {isBandeja && isExpanded && (
+                      <TableRow className="bg-slate-50/50">
+                        <TableCell colSpan={columns.length} className="p-0">
+                          <div className="px-8 py-3">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="text-xs text-muted-foreground uppercase">
+                                  <th className="text-left py-1 font-medium">Producto</th>
+                                  <th className="text-right py-1 font-medium">Cantidad pedida</th>
+                                  <th className="text-right py-1 font-medium">Stock disponible total</th>
+                                  <th className="text-right py-1 font-medium">Estado cobertura</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {pedido.productos.map((prod) => {
+                                  const stockDisp = getStockDisponible(prod.sku);
+                                  const cubierto = stockDisp >= prod.cantidad;
+                                  return (
+                                    <tr key={prod.sku} className="border-t border-slate-100">
+                                      <td className="py-2 text-foreground">{prod.nombre}</td>
+                                      <td className="py-2 text-right font-medium">{prod.cantidad}u</td>
+                                      <td className="py-2 text-right text-muted-foreground">{stockDisp}u</td>
+                                      <td className="py-2 text-right">
+                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                                          cubierto ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                                        }`}>
+                                          {cubierto ? "CUBIERTO" : "SIN STOCK"}
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
@@ -469,7 +565,6 @@ export default function Pedidos() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          {/* FIFO stock warnings */}
           {fifoResult && !fifoResult.success && (
             <div className="rounded-md bg-red-50 border border-red-200 p-3 space-y-2">
               {fifoResult.warnings.map((w) => (
@@ -483,7 +578,6 @@ export default function Pedidos() {
             </div>
           )}
 
-          {/* Product summary */}
           {confirmDialog && (
             <div className="rounded-md bg-muted/50 p-3">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Productos del pedido</p>
@@ -523,7 +617,7 @@ export default function Pedidos() {
           </AlertDialogHeader>
           <div className="py-2">
             <label className="text-sm font-medium">
-              Motivo de rechazo <span className="text-danger">*</span>
+              Motivo de rechazo <span className="text-red-600">*</span>
             </label>
             <Textarea
               className="mt-1.5"
