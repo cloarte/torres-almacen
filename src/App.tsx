@@ -4,8 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { LotesProvider } from "@/contexts/LotesContext";
 import Pedidos from "@/pages/Pedidos";
-import UsuariosPortal from "@/pages/UsuariosPortal";
 import Despachos from "@/pages/Despachos";
 import CrearDespacho from "@/pages/CrearDespacho";
 import DespachoDetalle from "@/pages/DespachoDetalle";
@@ -23,21 +23,22 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Navigate to="/pedidos" replace />} />
-          <Route element={<AppLayout />}>
-            <Route path="/pedidos" element={<Pedidos />} />
-            <Route path="/pedidos/usuarios-portal" element={<UsuariosPortal />} />
-            <Route path="/entrega/despachos" element={<Despachos />} />
-            <Route path="/entrega/despachos/nuevo" element={<CrearDespacho />} />
-            <Route path="/entrega/despachos/:id" element={<DespachoDetalle />} />
-            <Route path="/entrega/lotes" element={<Lotes />} />
-            <Route path="/entrega/retornos" element={<Retornos />} />
-            <Route path="/vencidos/alertas" element={<AlertasVencimiento />} />
-            <Route path="/reportes/dashboard" element={<Dashboard />} />
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <LotesProvider>
+          <Routes>
+            <Route path="/" element={<Navigate to="/pedidos?estado=PENDIENTE" replace />} />
+            <Route element={<AppLayout />}>
+              <Route path="/pedidos" element={<Pedidos />} />
+              <Route path="/entrega/despachos" element={<Despachos />} />
+              <Route path="/entrega/despachos/nuevo" element={<CrearDespacho />} />
+              <Route path="/entrega/despachos/:id" element={<DespachoDetalle />} />
+              <Route path="/entrega/lotes" element={<Lotes />} />
+              <Route path="/entrega/retornos" element={<Retornos />} />
+              <Route path="/vencidos/alertas" element={<AlertasVencimiento />} />
+              <Route path="/reportes/dashboard" element={<Dashboard />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </LotesProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
