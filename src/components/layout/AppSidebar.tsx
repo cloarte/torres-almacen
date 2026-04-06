@@ -2,14 +2,9 @@ import { useLocation, Link } from "react-router-dom";
 import {
   Inbox,
   ClipboardList,
-  Users,
   Truck,
   Package,
   CornerDownLeft,
-  Bell,
-  BarChart3,
-  TrendingUp,
-  CornerUpLeft,
   User,
   LogOut,
 } from "lucide-react";
@@ -31,9 +26,8 @@ const navigation: NavSection[] = [
   {
     title: "PEDIDOS",
     items: [
-      { label: "Bandeja de Pendientes", icon: Inbox, path: "/pedidos", badge: 5 },
-      { label: "Todos los Pedidos", icon: ClipboardList, path: "/pedidos/todos" },
-      { label: "Usuarios Portal", icon: Users, path: "/pedidos/usuarios-portal" },
+      { label: "Bandeja de Pendientes", icon: Inbox, path: "/pedidos?estado=PENDIENTE", badge: 5 },
+      { label: "Todos los Pedidos", icon: ClipboardList, path: "/pedidos" },
     ],
   },
   {
@@ -42,20 +36,6 @@ const navigation: NavSection[] = [
       { label: "Despachos", icon: Truck, path: "/entrega/despachos" },
       { label: "Lotes de Producción", icon: Package, path: "/entrega/lotes" },
       { label: "Retornos", icon: CornerDownLeft, path: "/entrega/retornos" },
-    ],
-  },
-  {
-    title: "VENCIDOS",
-    items: [
-      { label: "Alertas de Vencimiento", icon: Bell, path: "/vencidos/alertas" },
-    ],
-  },
-  {
-    title: "REPORTES",
-    items: [
-      { label: "Dashboard", icon: BarChart3, path: "/reportes/dashboard" },
-      { label: "Ventas x Vendedor", icon: TrendingUp, path: "/reportes/ventas-vendedor" },
-      { label: "Devoluciones", icon: CornerUpLeft, path: "/reportes/devoluciones" },
     ],
   },
   {
@@ -68,9 +48,13 @@ const navigation: NavSection[] = [
 
 export function AppSidebar() {
   const location = useLocation();
+  const fullPath = location.pathname + location.search;
 
   const isActive = (path: string) => {
-    if (path === "/pedidos") return location.pathname === "/pedidos";
+    // Exact match for paths with query params
+    if (path.includes("?")) return fullPath === path;
+    // For /pedidos without params, only active if no estado param
+    if (path === "/pedidos") return location.pathname === "/pedidos" && !location.search.includes("estado=");
     return location.pathname.startsWith(path);
   };
 
@@ -126,7 +110,7 @@ export function AppSidebar() {
             <p className="text-sm font-medium text-white truncate">Rosnelli Flores</p>
             <p className="text-[11px] text-slate-400">Almacén</p>
           </div>
-          <button className="text-slate-400 hover:text-white transition-colors">
+          <button className="text-slate-400 hover:text-white transition-colors" title="Cerrar sesión">
             <LogOut className="h-4 w-4" />
           </button>
         </div>
