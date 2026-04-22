@@ -210,6 +210,18 @@ function pedidoHasStockIssue(productos: PedidoProducto[]): boolean {
   return productos.some((p) => getStockDisponible(p.sku) < p.cantidad);
 }
 
+function parseTotal(t: string): number {
+  return Number(t.replace(/[^\d.-]/g, "")) || 0;
+}
+
+const RUTAS_POR_CANAL: Record<string, string[]> = {
+  Tradicional: ["LIM-01", "LIM-02", "PRV-01", "PRV-02"],
+  Corporativo: [],
+  Moderno: [],
+  Directa: [],
+};
+const TODAS_LAS_RUTAS = ["LIM-01", "LIM-02", "PRV-01", "PRV-02"];
+
 export default function Pedidos() {
   const [searchParams] = useSearchParams();
   const estadoParam = searchParams.get("estado");
