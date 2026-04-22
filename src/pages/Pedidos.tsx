@@ -24,6 +24,20 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   Table,
   TableBody,
@@ -196,6 +210,18 @@ function pedidoHasStockIssue(productos: PedidoProducto[]): boolean {
   return productos.some((p) => getStockDisponible(p.sku) < p.cantidad);
 }
 
+function parseTotal(t: string): number {
+  return Number(t.replace(/[^\d.-]/g, "")) || 0;
+}
+
+const RUTAS_POR_CANAL: Record<string, string[]> = {
+  Tradicional: ["LIM-01", "LIM-02", "PRV-01", "PRV-02"],
+  Corporativo: [],
+  Moderno: [],
+  Directa: [],
+};
+const TODAS_LAS_RUTAS = ["LIM-01", "LIM-02", "PRV-01", "PRV-02"];
+
 export default function Pedidos() {
   const [searchParams] = useSearchParams();
   const estadoParam = searchParams.get("estado");
@@ -210,6 +236,11 @@ export default function Pedidos() {
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [canalFilter, setCanalFilter] = useState<string>("all");
+  const [rutaFilter, setRutaFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkForce, setBulkForce] = useState(false);
 
   const { checkFifo, applyFifo } = useLotes();
 
@@ -222,12 +253,70 @@ export default function Pedidos() {
     });
   };
 
-  const filteredData = useMemo(() => {
-    if (!estadoParam) return data;
-    return data.filter((p) => p.estado === estadoParam);
-  }, [data, estadoParam]);
+  const rutaDisabled = canalFilter !== "all" && canalFilter !== "Tradicional";
+  const rutasDisponibles = useMemo(() => {
+    if (canalFilter === "all") return TODAS_LAS_RUTAS;
+    return RUTAS_POR_CANAL[canalFilter] || [];
+  }, [canalFilter]);
 
-  const pendingCount = data.filter((p) => p.estado === "PENDIENTE").length;
+  const filtersActive = canalFilter !== "all" || rutaFilter !== "all";
+
+  const filteredData = useMemo(() => {
+    let rows = data;
+    if (estadoParam) rows = rows.filter((p) => p.estado === estadoParam);
+    if (canalFilter !== "all") rows = rows.filter((p) => p.canal === canalFilter);
+    if (rutaFilter !== "all") rows = rows.filter((p) => p.ruta === rutaFilter);
+    return rows;
+  }, [data, estadoParam, canalFilter, rutaFilter]);
+
+  const pendingCount = filteredData.filter((p) => p.estado === "PENDIENTE").length;
+
+  const handleCanalChange = (v: string) => {
+    setCanalFilter(v);
+    if (v !== "all" && v !== "Tradicional") setRutaFilter("all");
+    setSelectedIds(new Set());
+  };
+  const handleRutaChange = (v: string) => {
+    setRutaFilter(v);
+    setSelectedIds(new Set());
+  };
+
+  const visiblePendingIds = useMemo(
+    () => filteredData.filter((p) => p.estado === "PENDIENTE").map((p) => p.id),
+    [filteredData]
+  );
+  const allVisibleSelected =
+    visiblePendingIds.length > 0 && visiblePendingIds.every((id) => selectedIds.has(id));
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visiblePendingIds.forEach((id) => next.delete(id));
+      else visiblePendingIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedPedidos = useMemo(
+    () => data.filter((p) => selectedIds.has(p.id) && p.estado === "PENDIENTE"),
+    [data, selectedIds]
+  );
+  const selectedTotal = selectedPedidos.reduce((acc, p) => acc + parseTotal(p.total), 0);
+  const bulkWarnings = useMemo(() => {
+    const issues: { pedido: string; cliente: string; warnings: { sku: string; nombre: string; needed: number; available: number }[] }[] = [];
+    for (const p of selectedPedidos) {
+      const r = checkFifo(p.productos);
+      if (!r.success) issues.push({ pedido: p.numero, cliente: p.cliente, warnings: r.warnings });
+    }
+    return issues;
+  }, [selectedPedidos, checkFifo]);
 
   const fifoResult = useMemo(() => {
     if (!confirmDialog) return null;
@@ -236,6 +325,30 @@ export default function Pedidos() {
 
   const columns = useMemo<ColumnDef<Pedido>[]>(
     () => [
+      ...(isBandeja && filtersActive ? [{
+        id: "select",
+        header: () => (
+          <Checkbox
+            checked={allVisibleSelected && visiblePendingIds.length > 0}
+            onCheckedChange={toggleSelectAll}
+            aria-label="Seleccionar todos"
+          />
+        ),
+        cell: ({ row }: any) => {
+          const p = row.original as Pedido;
+          if (p.estado !== "PENDIENTE") return null;
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={selectedIds.has(p.id)}
+                onCheckedChange={() => toggleSelectOne(p.id)}
+                aria-label={`Seleccionar ${p.numero}`}
+              />
+            </div>
+          );
+        },
+        size: 40,
+      }] as ColumnDef<Pedido>[] : []),
       ...(isBandeja ? [{
         id: "expander",
         header: () => null,
@@ -375,8 +488,23 @@ export default function Pedidos() {
         },
       },
     ],
-    [isBandeja, expandedRows]
+    [isBandeja, expandedRows, filtersActive, allVisibleSelected, visiblePendingIds, selectedIds]
   );
+
+  const handleBulkConfirm = () => {
+    let totalLotes = 0;
+    const ids = selectedPedidos.map((p) => p.id);
+    for (const p of selectedPedidos) {
+      totalLotes += applyFifo(p.productos, p.numero);
+    }
+    setData((prev) =>
+      prev.map((p) => (ids.includes(p.id) ? { ...p, estado: "CONFIRMADO" } : p))
+    );
+    toast.success(`${ids.length} pedidos confirmados. Stock actualizado en ${totalLotes} lote(s).`);
+    setSelectedIds(new Set());
+    setBulkConfirmOpen(false);
+    setBulkForce(false);
+  };
 
   const table = useReactTable({
     data: filteredData,
@@ -430,9 +558,9 @@ export default function Pedidos() {
         )}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search + Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[240px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por N° pedido o cliente..."
@@ -441,6 +569,53 @@ export default function Pedidos() {
             onChange={(e) => setGlobalFilter(e.target.value)}
           />
         </div>
+
+        {isBandeja && (
+          <>
+            <Select value={canalFilter} onValueChange={handleCanalChange}>
+              <SelectTrigger className="w-[180px] bg-card">
+                <SelectValue placeholder="Canal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los canales</SelectItem>
+                <SelectItem value="Corporativo">Corporativo</SelectItem>
+                <SelectItem value="Moderno">Moderno</SelectItem>
+                <SelectItem value="Tradicional">Tradicional</SelectItem>
+                <SelectItem value="Directa">Directa</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Select
+                      value={rutaFilter}
+                      onValueChange={handleRutaChange}
+                      disabled={rutaDisabled}
+                    >
+                      <SelectTrigger className="w-[180px] bg-card">
+                        <SelectValue placeholder="Ruta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las rutas</SelectItem>
+                        {rutasDisponibles.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TooltipTrigger>
+                {rutaDisabled && (
+                  <TooltipContent>
+                    Este canal no tiene rutas asignadas.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </>
+        )}
+
         {isBandeja && (
           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
             Estado: PENDIENTE
@@ -635,6 +810,95 @@ export default function Pedidos() {
             >
               Rechazar
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Sticky Bulk Action Bar */}
+      {isBandeja && selectedPedidos.length > 0 && (
+        <div className="bg-[#1E3A5F] text-white rounded-lg shadow-lg px-6 py-3 fixed bottom-6 left-72 right-6 flex items-center justify-between gap-4 z-40">
+          <div className="flex items-center gap-6 text-sm">
+            <span className="font-medium">{selectedPedidos.length} pedidos seleccionados</span>
+            <span className="opacity-80">
+              Total: S/ {selectedTotal.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="bg-transparent border-white/40 text-white hover:bg-white/10 hover:text-white"
+              onClick={() => setSelectedIds(new Set())}
+            >
+              Cancelar selección
+            </Button>
+            <Button
+              className="bg-[#E8A020] text-white font-medium hover:bg-[#d18f17]"
+              onClick={() => { setBulkForce(false); setBulkConfirmOpen(true); }}
+            >
+              Confirmar todos
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Confirm Dialog */}
+      <AlertDialog open={bulkConfirmOpen} onOpenChange={(o) => { if (!o) { setBulkConfirmOpen(false); setBulkForce(false); } }}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Confirmar {selectedPedidos.length} pedidos?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se confirmarán {selectedPedidos.length} pedidos por un total de S/ {selectedTotal.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+              Los precios quedarán congelados y el stock se actualizará automáticamente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {bulkWarnings.length > 0 && (
+            <div className="rounded-md bg-red-50 border border-red-200 p-3 space-y-2 max-h-40 overflow-auto">
+              <div className="flex items-center gap-2 text-sm font-medium text-red-700">
+                <AlertTriangle className="h-4 w-4" />
+                Stock insuficiente en {bulkWarnings.length} pedido(s)
+              </div>
+              {bulkWarnings.map((w) => (
+                <div key={w.pedido} className="text-xs text-red-700 pl-6">
+                  <strong>{w.pedido}</strong> — {w.cliente}
+                  <ul className="list-disc pl-5 mt-0.5">
+                    {w.warnings.map((sk) => (
+                      <li key={sk.sku}>{sk.nombre}: necesita {sk.needed}u, disponible {sk.available}u</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="rounded-md bg-muted/50 p-3 max-h-48 overflow-auto">
+            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Pedidos seleccionados</p>
+            {selectedPedidos.map((p) => (
+              <div key={p.id} className="flex justify-between text-sm py-0.5">
+                <span><strong>{p.numero}</strong> — {p.cliente}</span>
+                <span className="font-medium">{p.total}</span>
+              </div>
+            ))}
+          </div>
+
+          <AlertDialogFooter>
+            {bulkWarnings.length > 0 && !bulkForce ? (
+              <>
+                <AlertDialogCancel onClick={() => setBulkConfirmOpen(false)}>Revisar antes de confirmar</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleBulkConfirm}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Confirmar todos de todas formas
+                </AlertDialogAction>
+              </>
+            ) : (
+              <>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBulkConfirm}>Confirmar todos</AlertDialogAction>
+              </>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
