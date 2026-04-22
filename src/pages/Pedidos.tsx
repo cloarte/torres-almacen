@@ -325,6 +325,30 @@ export default function Pedidos() {
 
   const columns = useMemo<ColumnDef<Pedido>[]>(
     () => [
+      ...(isBandeja && filtersActive ? [{
+        id: "select",
+        header: () => (
+          <Checkbox
+            checked={allVisibleSelected && visiblePendingIds.length > 0}
+            onCheckedChange={toggleSelectAll}
+            aria-label="Seleccionar todos"
+          />
+        ),
+        cell: ({ row }: any) => {
+          const p = row.original as Pedido;
+          if (p.estado !== "PENDIENTE") return null;
+          return (
+            <div onClick={(e) => e.stopPropagation()}>
+              <Checkbox
+                checked={selectedIds.has(p.id)}
+                onCheckedChange={() => toggleSelectOne(p.id)}
+                aria-label={`Seleccionar ${p.numero}`}
+              />
+            </div>
+          );
+        },
+        size: 40,
+      }] as ColumnDef<Pedido>[] : []),
       ...(isBandeja ? [{
         id: "expander",
         header: () => null,
