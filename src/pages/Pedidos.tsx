@@ -558,9 +558,9 @@ export default function Pedidos() {
         )}
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search + Filters */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[240px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Buscar por N° pedido o cliente..."
@@ -569,6 +569,53 @@ export default function Pedidos() {
             onChange={(e) => setGlobalFilter(e.target.value)}
           />
         </div>
+
+        {isBandeja && (
+          <>
+            <Select value={canalFilter} onValueChange={handleCanalChange}>
+              <SelectTrigger className="w-[180px] bg-card">
+                <SelectValue placeholder="Canal" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los canales</SelectItem>
+                <SelectItem value="Corporativo">Corporativo</SelectItem>
+                <SelectItem value="Moderno">Moderno</SelectItem>
+                <SelectItem value="Tradicional">Tradicional</SelectItem>
+                <SelectItem value="Directa">Directa</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <Select
+                      value={rutaFilter}
+                      onValueChange={handleRutaChange}
+                      disabled={rutaDisabled}
+                    >
+                      <SelectTrigger className="w-[180px] bg-card">
+                        <SelectValue placeholder="Ruta" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todas las rutas</SelectItem>
+                        {rutasDisponibles.map((r) => (
+                          <SelectItem key={r} value={r}>{r}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </TooltipTrigger>
+                {rutaDisabled && (
+                  <TooltipContent>
+                    Este canal no tiene rutas asignadas.
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </TooltipProvider>
+          </>
+        )}
+
         {isBandeja && (
           <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
             Estado: PENDIENTE
