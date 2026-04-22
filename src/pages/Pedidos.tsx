@@ -488,8 +488,23 @@ export default function Pedidos() {
         },
       },
     ],
-    [isBandeja, expandedRows]
+    [isBandeja, expandedRows, filtersActive, allVisibleSelected, visiblePendingIds, selectedIds]
   );
+
+  const handleBulkConfirm = () => {
+    let totalLotes = 0;
+    const ids = selectedPedidos.map((p) => p.id);
+    for (const p of selectedPedidos) {
+      totalLotes += applyFifo(p.productos, p.numero);
+    }
+    setData((prev) =>
+      prev.map((p) => (ids.includes(p.id) ? { ...p, estado: "CONFIRMADO" } : p))
+    );
+    toast.success(`${ids.length} pedidos confirmados. Stock actualizado en ${totalLotes} lote(s).`);
+    setSelectedIds(new Set());
+    setBulkConfirmOpen(false);
+    setBulkForce(false);
+  };
 
   const table = useReactTable({
     data: filteredData,
