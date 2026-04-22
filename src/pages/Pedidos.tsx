@@ -236,6 +236,11 @@ export default function Pedidos() {
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [canalFilter, setCanalFilter] = useState<string>("all");
+  const [rutaFilter, setRutaFilter] = useState<string>("all");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkForce, setBulkForce] = useState(false);
 
   const { checkFifo, applyFifo } = useLotes();
 
@@ -248,12 +253,70 @@ export default function Pedidos() {
     });
   };
 
-  const filteredData = useMemo(() => {
-    if (!estadoParam) return data;
-    return data.filter((p) => p.estado === estadoParam);
-  }, [data, estadoParam]);
+  const rutaDisabled = canalFilter !== "all" && canalFilter !== "Tradicional";
+  const rutasDisponibles = useMemo(() => {
+    if (canalFilter === "all") return TODAS_LAS_RUTAS;
+    return RUTAS_POR_CANAL[canalFilter] || [];
+  }, [canalFilter]);
 
-  const pendingCount = data.filter((p) => p.estado === "PENDIENTE").length;
+  const filtersActive = canalFilter !== "all" || rutaFilter !== "all";
+
+  const filteredData = useMemo(() => {
+    let rows = data;
+    if (estadoParam) rows = rows.filter((p) => p.estado === estadoParam);
+    if (canalFilter !== "all") rows = rows.filter((p) => p.canal === canalFilter);
+    if (rutaFilter !== "all") rows = rows.filter((p) => p.ruta === rutaFilter);
+    return rows;
+  }, [data, estadoParam, canalFilter, rutaFilter]);
+
+  const pendingCount = filteredData.filter((p) => p.estado === "PENDIENTE").length;
+
+  const handleCanalChange = (v: string) => {
+    setCanalFilter(v);
+    if (v !== "all" && v !== "Tradicional") setRutaFilter("all");
+    setSelectedIds(new Set());
+  };
+  const handleRutaChange = (v: string) => {
+    setRutaFilter(v);
+    setSelectedIds(new Set());
+  };
+
+  const visiblePendingIds = useMemo(
+    () => filteredData.filter((p) => p.estado === "PENDIENTE").map((p) => p.id),
+    [filteredData]
+  );
+  const allVisibleSelected =
+    visiblePendingIds.length > 0 && visiblePendingIds.every((id) => selectedIds.has(id));
+  const toggleSelectAll = () => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) visiblePendingIds.forEach((id) => next.delete(id));
+      else visiblePendingIds.forEach((id) => next.add(id));
+      return next;
+    });
+  };
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedPedidos = useMemo(
+    () => data.filter((p) => selectedIds.has(p.id) && p.estado === "PENDIENTE"),
+    [data, selectedIds]
+  );
+  const selectedTotal = selectedPedidos.reduce((acc, p) => acc + parseTotal(p.total), 0);
+  const bulkWarnings = useMemo(() => {
+    const issues: { pedido: string; cliente: string; warnings: { sku: string; nombre: string; needed: number; available: number }[] }[] = [];
+    for (const p of selectedPedidos) {
+      const r = checkFifo(p.productos);
+      if (!r.success) issues.push({ pedido: p.numero, cliente: p.cliente, warnings: r.warnings });
+    }
+    return issues;
+  }, [selectedPedidos, checkFifo]);
 
   const fifoResult = useMemo(() => {
     if (!confirmDialog) return null;
