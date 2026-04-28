@@ -20,11 +20,11 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -64,12 +64,17 @@ interface PedidoProducto {
   sku: string;
   nombre: string;
   cantidad: number;
+  precioOriginal?: number;
+  precioEspecial?: number;
 }
+
+type RowKind = "PEDIDO" | "SOBRESTOCK" | "CARRITO";
 
 interface Pedido {
   id: string;
   numero: string;
   cliente: string;
+  vendedor: string;
   canal: string;
   ruta: string | null;
   fechaPedido: string;
@@ -77,9 +82,10 @@ interface Pedido {
   urgencia: "HOY" | "MAÑANA" | string;
   estado: string;
   total: string;
-  origen: "INTERNO" | "PORTAL";
+  origen: "INTERNO" | "PORTAL" | "ESPECIAL";
   creadoPor: string | null;
   productos: PedidoProducto[];
+  kind?: RowKind;
 }
 
 // Stock disponible total por SKU (mock)
@@ -89,92 +95,197 @@ const stockPorSku: Record<string, number> = {
   "EMP-POL-12": 30,
   "CRO-MAN": 0,
   "TOR-3L-1K": 15,
-  // SKUs sin stock definido se tratan como 0
+  "PAN-CHO-900": 60,
+  "PAN-MOL-INT": 70,
+  "KEK-MAR-400": 40,
 };
 
+// ---------- Mock data ----------
+const P = (
+  id: string,
+  numero: string,
+  cliente: string,
+  vendedor: string,
+  canal: string,
+  ruta: string | null,
+  urgencia: string,
+  fechaEntrega: string,
+  total: string,
+  origen: "INTERNO" | "PORTAL" | "ESPECIAL",
+  productos: PedidoProducto[],
+  kind: RowKind = "PEDIDO"
+): Pedido => ({
+  id,
+  numero,
+  cliente,
+  vendedor,
+  canal,
+  ruta,
+  fechaPedido: "2026-03-18",
+  fechaEntrega,
+  urgencia,
+  estado: "PENDIENTE",
+  total,
+  origen,
+  creadoPor: vendedor,
+  productos,
+  kind,
+});
+
 const mockData: Pedido[] = [
-  // PENDIENTE — CUBIERTO (all products have enough stock)
-  {
-    id: "1", numero: "PED-2026-0045", cliente: "Bodega San Martín", canal: "Tradicional",
-    ruta: "LIM-01", fechaPedido: "2026-03-18", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
-    total: "S/ 480", origen: "PORTAL", creadoPor: null,
-    productos: [
-      { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 10 },
-      { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 20 },
-    ],
-  },
-  // PENDIENTE — CUBIERTO
-  {
-    id: "2", numero: "PED-2026-0044", cliente: "Supermercados Plaza", canal: "Moderno",
-    ruta: null, fechaPedido: "2026-03-18", fechaEntrega: "2026-03-20", urgencia: "HOY", estado: "PENDIENTE",
-    total: "S/ 1,850", origen: "INTERNO", creadoPor: "Juan López",
-    productos: [
-      { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 10 },
-      { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 5 },
-    ],
-  },
-  // PENDIENTE — SIN STOCK (Croissant = 0u)
-  {
-    id: "3", numero: "PED-2026-0043", cliente: "Distribuidora Lima", canal: "Directa",
-    ruta: null, fechaPedido: "2026-03-17", fechaEntrega: "2026-03-21", urgencia: "MAÑANA", estado: "PENDIENTE",
-    total: "S/ 3,200", origen: "INTERNO", creadoPor: "Pedro Soto",
-    productos: [
-      { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 50 },
-      { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 40 },
-    ],
-  },
-  // PENDIENTE — SIN STOCK (Torta 15u disponible, piden 25)
-  {
-    id: "4", numero: "PED-2026-0042", cliente: "Restaurant El Buen Sabor", canal: "Corporativo",
-    ruta: null, fechaPedido: "2026-03-16", fechaEntrega: "2026-03-22", urgencia: "22/03", estado: "PENDIENTE",
-    total: "S/ 950", origen: "PORTAL", creadoPor: null,
-    productos: [
-      { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 25 },
-      { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 10 },
-    ],
-  },
-  // PENDIENTE — CUBIERTO
-  {
-    id: "5", numero: "PED-2026-0041", cliente: "Bodega La Cruz", canal: "Tradicional",
-    ruta: "PRV-01", fechaPedido: "2026-03-15", fechaEntrega: "2026-03-23", urgencia: "23/03", estado: "PENDIENTE",
-    total: "S/ 720", origen: "INTERNO", creadoPor: "María Torres",
-    productos: [
-      { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 15 },
-    ],
-  },
-  // CONFIRMADO
-  {
-    id: "6", numero: "PED-2026-0040", cliente: "Minimarket Los Olivos", canal: "Tradicional",
-    ruta: "LIM-01", fechaPedido: "2026-03-14", fechaEntrega: "2026-03-18", urgencia: "18/03", estado: "CONFIRMADO",
-    total: "S/ 1,100", origen: "PORTAL", creadoPor: null,
-    productos: [{ sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 30 }],
-  },
-  {
-    id: "7", numero: "PED-2026-0039", cliente: "Cevichería Marina", canal: "Corporativo",
-    ruta: null, fechaPedido: "2026-03-13", fechaEntrega: "2026-03-17", urgencia: "17/03", estado: "CONFIRMADO",
-    total: "S/ 620", origen: "INTERNO", creadoPor: "Juan López",
-    productos: [{ sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 8 }],
-  },
-  {
-    id: "8", numero: "PED-2026-0038", cliente: "Panadería Central", canal: "Directa",
-    ruta: "LIM-02", fechaPedido: "2026-03-12", fechaEntrega: "2026-03-16", urgencia: "16/03", estado: "LISTO_DESPACHO",
-    total: "S/ 2,400", origen: "INTERNO", creadoPor: "Pedro Soto",
-    productos: [{ sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 40 }],
-  },
-  // CANCELADO / RECHAZADO
-  {
-    id: "9", numero: "PED-2026-0037", cliente: "Bodega El Sol", canal: "Tradicional",
-    ruta: null, fechaPedido: "2026-03-11", fechaEntrega: "2026-03-15", urgencia: "15/03", estado: "CANCELADO",
-    total: "S/ 350", origen: "PORTAL", creadoPor: null,
-    productos: [{ sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 5 }],
-  },
-  {
-    id: "10", numero: "PED-2026-0036", cliente: "Hotel Gran Vista", canal: "Corporativo",
-    ruta: null, fechaPedido: "2026-03-10", fechaEntrega: "2026-03-14", urgencia: "14/03", estado: "RECHAZADO",
-    total: "S/ 4,500", origen: "INTERNO", creadoPor: "María Torres",
-    productos: [{ sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 100 }],
-  },
+  // Carlos Ríos - LIM-01
+  P("1", "PED-2026-0045", "Bodega San Martín", "Carlos Ríos", "Tradicional", "LIM-01", "HOY", "2026-03-20", "S/ 480", "PORTAL", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 10 },
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 12 },
+  ]),
+  P("2", "PED-2026-0039", "Minimarket Los Andes", "Carlos Ríos", "Tradicional", "LIM-01", "HOY", "2026-03-20", "S/ 320", "INTERNO", [
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 8 },
+  ]),
+  P("3", "PED-2026-0033", "Bodega El Progreso", "Carlos Ríos", "Tradicional", "LIM-01", "MAÑANA", "2026-03-21", "S/ 560", "PORTAL", [
+    { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 20 },
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 6 },
+  ]),
+  P("4", "PED-2026-0027", "Tienda Señora Rosa", "Carlos Ríos", "Tradicional", "LIM-01", "MAÑANA", "2026-03-21", "S/ 210", "INTERNO", [
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 6 },
+  ]),
+  P("5s", "SBS-CR-LIM01", "Sobrestock disponible para venta directa", "Carlos Ríos", "Tradicional", "LIM-01", "HOY", "2026-03-20", "S/ 850", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 15 },
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 20 },
+  ], "SOBRESTOCK"),
+  P("5c", "CARR-CR-LIM01", "Carrito de ayer (referencial)", "Carlos Ríos", "Tradicional", "LIM-01", "—", "—", "—", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 8 },
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 12 },
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 5 },
+  ], "CARRITO"),
+
+  // María Torres - LIM-02
+  P("6", "PED-2026-0044", "Bodega La Cruz", "María Torres", "Tradicional", "LIM-02", "HOY", "2026-03-20", "S/ 390", "PORTAL", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 18 },
+  ]),
+  P("7", "PED-2026-0038", "Minimarket Don José", "María Torres", "Tradicional", "LIM-02", "HOY", "2026-03-20", "S/ 275", "INTERNO", [
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 12 },
+  ]),
+  P("8", "PED-2026-0032", "Bodega Santa Rosa", "María Torres", "Tradicional", "LIM-02", "MAÑANA", "2026-03-21", "S/ 440", "PORTAL", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 14 },
+  ]),
+  P("9", "PED-2026-0026", "Tienda El Carmen", "María Torres", "Tradicional", "LIM-02", "MAÑANA", "2026-03-21", "S/ 180", "INTERNO", [
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 5 },
+  ]),
+  P("10s", "SBS-MT-LIM02", "Sobrestock disponible para venta directa", "María Torres", "Tradicional", "LIM-02", "HOY", "2026-03-20", "S/ 620", "INTERNO", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 18 },
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 10 },
+  ], "SOBRESTOCK"),
+  P("10c", "CARR-MT-LIM02", "Carrito de ayer (referencial)", "María Torres", "Tradicional", "LIM-02", "—", "—", "—", "INTERNO", [
+    { sku: "PAN-CHO-900", nombre: "Panetón Chocolate 900g", cantidad: 6 },
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 10 },
+    { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 4 },
+  ], "CARRITO"),
+
+  // Pedro Soto - LIM-03 (no rutas listadas — usaremos LIM-03 informalmente)
+  P("11", "PED-2026-0043", "Distribuidora Lima", "Pedro Soto", "Tradicional", "LIM-02", "HOY", "2026-03-20", "S/ 720", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 25 },
+    { sku: "CRO-MAN", nombre: "Croissant Mantequilla", cantidad: 15 },
+  ]),
+  P("12", "PED-2026-0037", "Bodega El Sol", "Pedro Soto", "Tradicional", "LIM-02", "HOY", "2026-03-20", "S/ 310", "PORTAL", [
+    { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidad: 8 },
+  ]),
+  P("13", "PED-2026-0031", "Minimarket Perú", "Pedro Soto", "Tradicional", "LIM-02", "MAÑANA", "2026-03-21", "S/ 490", "INTERNO", [
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 12 },
+  ]),
+  P("14", "PED-2026-0025", "Tienda San Pedro", "Pedro Soto", "Tradicional", "LIM-02", "MAÑANA", "2026-03-21", "S/ 230", "PORTAL", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 8 },
+  ]),
+  P("15s", "SBS-PS-LIM03", "Sobrestock disponible para venta directa", "Pedro Soto", "Tradicional", "LIM-02", "HOY", "2026-03-20", "S/ 780", "INTERNO", [
+    { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidad: 15 },
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 10 },
+  ], "SOBRESTOCK"),
+  P("15c", "CARR-PS-LIM03", "Carrito de ayer (referencial)", "Pedro Soto", "Tradicional", "LIM-02", "—", "—", "—", "INTERNO", [
+    { sku: "PAN-MOL-INT", nombre: "Pan de Molde Integral", cantidad: 15 },
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 8 },
+  ], "CARRITO"),
+
+  // Ana Villanueva - PRV-01
+  P("16", "PED-2026-0042", "Bodega Norte", "Ana Villanueva", "Tradicional", "PRV-01", "HOY", "2026-03-20", "S/ 2,100", "PORTAL", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 50 },
+  ]),
+  P("17", "PED-2026-0036", "Distribuidora Trujillo", "Ana Villanueva", "Tradicional", "PRV-01", "HOY", "2026-03-20", "S/ 3,400", "INTERNO", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 80 },
+  ]),
+  P("18", "PED-2026-0030", "Minimarket Chicama", "Ana Villanueva", "Tradicional", "PRV-01", "MAÑANA", "2026-03-21", "S/ 1,800", "PORTAL", [
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 40 },
+  ]),
+  P("19", "PED-2026-0024", "Bodega El Huaco", "Ana Villanueva", "Tradicional", "PRV-01", "MAÑANA", "2026-03-21", "S/ 950", "INTERNO", [
+    { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 18 },
+  ]),
+  P("20s", "SBS-AV-PRV01", "Sobrestock disponible para venta directa", "Ana Villanueva", "Tradicional", "PRV-01", "HOY", "2026-03-20", "S/ 2,200", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 30 },
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 25 },
+  ], "SOBRESTOCK"),
+  P("20c", "CARR-AV-PRV01", "Carrito de ayer (referencial)", "Ana Villanueva", "Tradicional", "PRV-01", "—", "—", "—", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 20 },
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 18 },
+    { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 3 },
+  ], "CARRITO"),
+
+  // Luis Paredes - PRV-02
+  P("21", "PED-2026-0041", "Tienda Piura Centro", "Luis Paredes", "Tradicional", "PRV-02", "HOY", "2026-03-20", "S/ 1,650", "PORTAL", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 40 },
+  ]),
+  P("22", "PED-2026-0035", "Bodega El Bosque", "Luis Paredes", "Tradicional", "PRV-02", "HOY", "2026-03-20", "S/ 2,300", "INTERNO", [
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 60 },
+  ]),
+  P("23", "PED-2026-0029", "Distribuidora Piura", "Luis Paredes", "Tradicional", "PRV-02", "MAÑANA", "2026-03-21", "S/ 4,100", "PORTAL", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 100 },
+  ]),
+  P("24", "PED-2026-0023", "Minimarket Los Jardines", "Luis Paredes", "Tradicional", "PRV-02", "MAÑANA", "2026-03-21", "S/ 1,200", "INTERNO", [
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 25 },
+  ]),
+  P("25s", "SBS-LP-PRV02", "Sobrestock disponible para venta directa", "Luis Paredes", "Tradicional", "PRV-02", "HOY", "2026-03-20", "S/ 1,900", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 35 },
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 20 },
+  ], "SOBRESTOCK"),
+  P("25c", "CARR-LP-PRV02", "Carrito de ayer (referencial)", "Luis Paredes", "Tradicional", "PRV-02", "—", "—", "—", "INTERNO", [
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 12 },
+    { sku: "PAN-CHO-900", nombre: "Panetón Chocolate 900g", cantidad: 9 },
+    { sku: "KEK-MAR-400", nombre: "Keke Marmoleado 400g", cantidad: 6 },
+  ], "CARRITO"),
+
+  // Juan López - Moderno
+  P("26", "PED-2026-0044M", "Supermercados Plaza", "Juan López", "Moderno", null, "HOY", "2026-03-20", "S/ 1,850", "INTERNO", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 40 },
+  ]),
+  P("27", "PED-2026-0040M", "Metro San Isidro", "Juan López", "Moderno", null, "HOY", "2026-03-20", "S/ 3,200", "PORTAL", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 80 },
+  ]),
+  P("28", "PED-2026-0034M", "Plaza Vea Miraflores", "Juan López", "Moderno", null, "MAÑANA", "2026-03-21", "S/ 2,750", "INTERNO", [
+    { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 40 },
+  ]),
+
+  // Roberto Chávez - Corporativo
+  P("29", "PED-2026-0042C", "Restaurant El Buen Sabor", "Roberto Chávez", "Corporativo", null, "22/03", "2026-03-22", "S/ 950", "PORTAL", [
+    { sku: "EMP-POL-12", nombre: "Empanada Pollo x12", cantidad: 25 },
+  ]),
+  P("30", "PED-2026-0028", "Colegio San Agustín", "Roberto Chávez", "Corporativo", null, "23/03", "2026-03-23", "S/ 1,400", "INTERNO", [
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 30 },
+  ]),
+
+  // Carlos Ríos - Directa (ESPECIAL)
+  P("31", "PED-2026-0046", "Bodega El Carmen", "Carlos Ríos", "Directa", null, "HOY", "2026-03-20", "S/ 340", "ESPECIAL", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 12, precioOriginal: 28, precioEspecial: 18 },
+    { sku: "PAN-MOL-BL", nombre: "Pan de Molde Blanco 500g", cantidad: 8, precioOriginal: 12, precioEspecial: 8 },
+  ]),
 ];
+
+// Histórico (no-bandeja)
+const historialData: Pedido[] = [
+  P("h1", "PED-2026-0020", "Minimarket Los Olivos", "Carlos Ríos", "Tradicional", "LIM-01", "18/03", "2026-03-18", "S/ 1,100", "PORTAL", [
+    { sku: "PAN-CL-900", nombre: "Panetón Clásico 900g", cantidad: 30 },
+  ]),
+  P("h2", "PED-2026-0019", "Cevichería Marina", "Juan López", "Corporativo", null, "17/03", "2026-03-17", "S/ 620", "INTERNO", [
+    { sku: "TOR-3L-1K", nombre: "Torta Tres Leches 1kg", cantidad: 8 },
+  ]),
+];
+historialData.forEach((p) => (p.estado = "CONFIRMADO"));
 
 const canalColors: Record<string, string> = {
   Tradicional: "bg-blue-100 text-blue-700",
@@ -186,6 +297,7 @@ const canalColors: Record<string, string> = {
 const origenColors: Record<string, string> = {
   INTERNO: "bg-purple-100 text-purple-700",
   PORTAL: "bg-teal-100 text-teal-700",
+  ESPECIAL: "bg-purple-100 text-purple-700",
 };
 
 const estadoColors: Record<string, string> = {
@@ -205,11 +317,9 @@ const urgenciaStyle = (u: string) => {
 function getStockDisponible(sku: string): number {
   return stockPorSku[sku] ?? 0;
 }
-
 function pedidoHasStockIssue(productos: PedidoProducto[]): boolean {
   return productos.some((p) => getStockDisponible(p.sku) < p.cantidad);
 }
-
 function parseTotal(t: string): number {
   return Number(t.replace(/[^\d.-]/g, "")) || 0;
 }
@@ -222,24 +332,30 @@ const RUTAS_POR_CANAL: Record<string, string[]> = {
 };
 const TODAS_LAS_RUTAS = ["LIM-01", "LIM-02", "PRV-01", "PRV-02"];
 
+function vendorInitials(name: string) {
+  return name
+    .split(" ")
+    .map((s) => s[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 export default function Pedidos() {
   const [searchParams] = useSearchParams();
   const estadoParam = searchParams.get("estado");
   const isBandeja = estadoParam === "PENDIENTE";
 
-  const [data, setData] = useState(mockData);
-  const [sorting, setSorting] = useState<SortingState>(
-    isBandeja ? [{ id: "urgencia", desc: false }] : [{ id: "fechaPedido", desc: true }]
-  );
+  const [data, setData] = useState<Pedido[]>(isBandeja ? mockData : historialData);
   const [globalFilter, setGlobalFilter] = useState("");
   const [confirmDialog, setConfirmDialog] = useState<Pedido | null>(null);
   const [rejectDialog, setRejectDialog] = useState<Pedido | null>(null);
   const [rejectMotivo, setRejectMotivo] = useState("");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [canalFilter, setCanalFilter] = useState<string>("all");
   const [rutaFilter, setRutaFilter] = useState<string>("all");
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
+  const [bulkConfirmGroup, setBulkConfirmGroup] = useState<{ key: string; vendedor: string; pedidos: Pedido[] } | null>(null);
   const [bulkForce, setBulkForce] = useState(false);
 
   const { checkFifo, applyFifo } = useLotes();
@@ -252,6 +368,14 @@ export default function Pedidos() {
       return next;
     });
   };
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
 
   const rutaDisabled = canalFilter !== "all" && canalFilter !== "Tradicional";
   const rutasDisponibles = useMemo(() => {
@@ -259,112 +383,115 @@ export default function Pedidos() {
     return RUTAS_POR_CANAL[canalFilter] || [];
   }, [canalFilter]);
 
-  const filtersActive = canalFilter !== "all" || rutaFilter !== "all";
-
   const filteredData = useMemo(() => {
     let rows = data;
-    if (estadoParam) rows = rows.filter((p) => p.estado === estadoParam);
+    if (estadoParam && !isBandeja) rows = rows.filter((p) => p.estado === estadoParam);
     if (canalFilter !== "all") rows = rows.filter((p) => p.canal === canalFilter);
     if (rutaFilter !== "all") rows = rows.filter((p) => p.ruta === rutaFilter);
+    if (globalFilter.trim()) {
+      const q = globalFilter.toLowerCase();
+      rows = rows.filter(
+        (p) =>
+          p.numero.toLowerCase().includes(q) ||
+          p.cliente.toLowerCase().includes(q) ||
+          p.vendedor.toLowerCase().includes(q)
+      );
+    }
     return rows;
-  }, [data, estadoParam, canalFilter, rutaFilter]);
+  }, [data, estadoParam, isBandeja, canalFilter, rutaFilter, globalFilter]);
 
-  const pendingCount = filteredData.filter((p) => p.estado === "PENDIENTE").length;
+  // Group by vendedor + canal (+ ruta for Tradicional)
+  const groups = useMemo(() => {
+    if (!isBandeja) return [];
+    const map = new Map<string, { key: string; vendedor: string; canal: string; ruta: string | null; rows: Pedido[] }>();
+    for (const p of filteredData) {
+      const key = `${p.vendedor}|${p.canal}|${p.ruta ?? ""}`;
+      if (!map.has(key)) map.set(key, { key, vendedor: p.vendedor, canal: p.canal, ruta: p.ruta, rows: [] });
+      map.get(key)!.rows.push(p);
+    }
+    // Within each group: real pedidos first, then SOBRESTOCK, then CARRITO
+    const order = (k?: RowKind) => (k === "CARRITO" ? 2 : k === "SOBRESTOCK" ? 1 : 0);
+    for (const g of map.values()) {
+      g.rows.sort((a, b) => order(a.kind) - order(b.kind));
+    }
+    return Array.from(map.values());
+  }, [filteredData, isBandeja]);
 
-  const handleCanalChange = (v: string) => {
-    setCanalFilter(v);
-    if (v !== "all" && v !== "Tradicional") setRutaFilter("all");
-    setSelectedIds(new Set());
-  };
-  const handleRutaChange = (v: string) => {
-    setRutaFilter(v);
-    setSelectedIds(new Set());
-  };
+  const groupSummary = useMemo(() => {
+    return groups.map((g) => {
+      const realPedidos = g.rows.filter((r) => r.estado === "PENDIENTE" && r.kind !== "CARRITO");
+      const total = realPedidos.reduce((acc, p) => acc + parseTotal(p.total), 0);
+      return { ...g, count: realPedidos.filter((r) => r.kind === "PEDIDO").length, total, confirmable: realPedidos };
+    });
+  }, [groups]);
 
-  const visiblePendingIds = useMemo(
-    () => filteredData.filter((p) => p.estado === "PENDIENTE").map((p) => p.id),
+  const totalPendingCount = useMemo(
+    () => filteredData.filter((p) => p.estado === "PENDIENTE" && p.kind !== "CARRITO" && p.kind !== "SOBRESTOCK").length,
     [filteredData]
   );
-  const allVisibleSelected =
-    visiblePendingIds.length > 0 && visiblePendingIds.every((id) => selectedIds.has(id));
-  const toggleSelectAll = () => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (allVisibleSelected) visiblePendingIds.forEach((id) => next.delete(id));
-      else visiblePendingIds.forEach((id) => next.add(id));
-      return next;
-    });
-  };
-  const toggleSelectOne = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectedPedidos = useMemo(
-    () => data.filter((p) => selectedIds.has(p.id) && p.estado === "PENDIENTE"),
-    [data, selectedIds]
+  const totalSum = useMemo(
+    () => filteredData
+      .filter((p) => p.estado === "PENDIENTE" && p.kind !== "CARRITO")
+      .reduce((acc, p) => acc + parseTotal(p.total), 0),
+    [filteredData]
   );
-  const selectedTotal = selectedPedidos.reduce((acc, p) => acc + parseTotal(p.total), 0);
-  const bulkWarnings = useMemo(() => {
-    const issues: { pedido: string; cliente: string; warnings: { sku: string; nombre: string; needed: number; available: number }[] }[] = [];
-    for (const p of selectedPedidos) {
-      const r = checkFifo(p.productos);
-      if (!r.success) issues.push({ pedido: p.numero, cliente: p.cliente, warnings: r.warnings });
-    }
-    return issues;
-  }, [selectedPedidos, checkFifo]);
+  const vendorCount = groups.length;
 
   const fifoResult = useMemo(() => {
     if (!confirmDialog) return null;
     return checkFifo(confirmDialog.productos);
   }, [confirmDialog, checkFifo]);
 
-  const columns = useMemo<ColumnDef<Pedido>[]>(
+  const bulkWarnings = useMemo(() => {
+    if (!bulkConfirmGroup) return [];
+    const issues: { pedido: string; cliente: string; warnings: { sku: string; nombre: string; needed: number; available: number }[] }[] = [];
+    for (const p of bulkConfirmGroup.pedidos) {
+      const r = checkFifo(p.productos);
+      if (!r.success) issues.push({ pedido: p.numero, cliente: p.cliente, warnings: r.warnings });
+    }
+    return issues;
+  }, [bulkConfirmGroup, checkFifo]);
+
+  const bulkTotal = useMemo(
+    () => bulkConfirmGroup?.pedidos.reduce((acc, p) => acc + parseTotal(p.total), 0) ?? 0,
+    [bulkConfirmGroup]
+  );
+
+  const handleConfirm = () => {
+    if (!confirmDialog) return;
+    const lotesAfectados = applyFifo(confirmDialog.productos, confirmDialog.numero);
+    setData((prev) =>
+      prev.map((p) => (p.id === confirmDialog.id ? { ...p, estado: "CONFIRMADO" } : p))
+    );
+    toast.success(`Pedido ${confirmDialog.numero} confirmado. Stock actualizado en ${lotesAfectados} lote(s).`);
+    setConfirmDialog(null);
+  };
+  const handleReject = () => {
+    if (!rejectDialog || !rejectMotivo.trim()) return;
+    setData((prev) =>
+      prev.map((p) => (p.id === rejectDialog.id ? { ...p, estado: "RECHAZADO" } : p))
+    );
+    toast.success(`Pedido ${rejectDialog.numero} rechazado.`);
+    setRejectDialog(null);
+    setRejectMotivo("");
+  };
+  const handleBulkConfirm = () => {
+    if (!bulkConfirmGroup) return;
+    let totalLotes = 0;
+    const ids = bulkConfirmGroup.pedidos.map((p) => p.id);
+    for (const p of bulkConfirmGroup.pedidos) {
+      totalLotes += applyFifo(p.productos, p.numero);
+    }
+    setData((prev) => prev.map((p) => (ids.includes(p.id) ? { ...p, estado: "CONFIRMADO" } : p)));
+    toast.success(`${ids.length} pedidos confirmados. Stock actualizado en ${totalLotes} lote(s).`);
+    setBulkConfirmGroup(null);
+    setBulkForce(false);
+  };
+
+  // ---------- "Todos los pedidos" — TanStack table (unchanged-ish) ----------
+  const [sorting, setSorting] = useState<SortingState>([{ id: "fechaPedido", desc: true }]);
+  const histColumns = useMemo<ColumnDef<Pedido>[]>(
     () => [
-      ...(isBandeja && filtersActive ? [{
-        id: "select",
-        header: () => (
-          <Checkbox
-            checked={allVisibleSelected && visiblePendingIds.length > 0}
-            onCheckedChange={toggleSelectAll}
-            aria-label="Seleccionar todos"
-          />
-        ),
-        cell: ({ row }: any) => {
-          const p = row.original as Pedido;
-          if (p.estado !== "PENDIENTE") return null;
-          return (
-            <div onClick={(e) => e.stopPropagation()}>
-              <Checkbox
-                checked={selectedIds.has(p.id)}
-                onCheckedChange={() => toggleSelectOne(p.id)}
-                aria-label={`Seleccionar ${p.numero}`}
-              />
-            </div>
-          );
-        },
-        size: 40,
-      }] as ColumnDef<Pedido>[] : []),
-      ...(isBandeja ? [{
-        id: "expander",
-        header: () => null,
-        cell: ({ row }: any) => {
-          const isExpanded = expandedRows.has(row.original.id);
-          return (
-            <button
-              className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-              onClick={(e) => { e.stopPropagation(); toggleRow(row.original.id); }}
-            >
-              {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-          );
-        },
-        size: 40,
-      }] as ColumnDef<Pedido>[] : []),
       {
         accessorKey: "numero",
         header: ({ column }) => (
@@ -374,13 +501,9 @@ export default function Pedidos() {
         ),
         cell: ({ row }) => <span className="font-medium text-foreground">{row.original.numero}</span>,
       },
+      { accessorKey: "cliente", header: "Cliente" },
       {
-        accessorKey: "cliente",
-        header: "Cliente",
-      },
-      {
-        accessorKey: "canal",
-        header: "Canal",
+        accessorKey: "canal", header: "Canal",
         cell: ({ row }) => (
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${canalColors[row.original.canal] || "bg-slate-100 text-slate-600"}`}>
             {row.original.canal}
@@ -388,47 +511,16 @@ export default function Pedidos() {
         ),
       },
       {
-        accessorKey: "ruta",
-        header: "Ruta",
-        cell: ({ row }) => row.original.ruta ? (
-          <span className="text-muted-foreground">{row.original.ruta}</span>
-        ) : <span className="text-slate-300">—</span>,
-      },
-      ...(!isBandeja ? [{
-        accessorKey: "fechaPedido" as const,
-        header: ({ column }: any) => (
+        accessorKey: "fechaPedido",
+        header: ({ column }) => (
           <button className="flex items-center gap-1" onClick={() => column.toggleSorting()}>
             F. Pedido <ArrowUpDown className="h-3 w-3" />
           </button>
         ),
-        cell: ({ row }: any) => <span className="text-sm text-muted-foreground">{row.original.fechaPedido}</span>,
-      }] as ColumnDef<Pedido>[] : []),
-      {
-        accessorKey: "urgencia",
-        header: ({ column }) => (
-          <button className="flex items-center gap-1" onClick={() => column.toggleSorting()}>
-            Entrega <ArrowUpDown className="h-3 w-3" />
-          </button>
-        ),
-        sortingFn: (rowA, rowB) => {
-          const stateOrder = (s: string) => s === "PENDIENTE" ? 0 : 1;
-          const sDiff = stateOrder(rowA.original.estado) - stateOrder(rowB.original.estado);
-          if (sDiff !== 0) return sDiff;
-          return rowA.original.fechaEntrega.localeCompare(rowB.original.fechaEntrega);
-        },
-        cell: ({ row }) => {
-          const u = row.original.urgencia;
-          const cls = urgenciaStyle(u);
-          return cls ? (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${cls}`}>{u}</span>
-          ) : (
-            <span className="text-muted-foreground text-sm">{u}</span>
-          );
-        },
+        cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.original.fechaPedido}</span>,
       },
       {
-        accessorKey: "estado",
-        header: "Estado",
+        accessorKey: "estado", header: "Estado",
         cell: ({ row }) => {
           const e = row.original.estado;
           return (
@@ -438,77 +530,21 @@ export default function Pedidos() {
           );
         },
       },
+      { accessorKey: "total", header: "Total c/IGV", cell: ({ row }) => <span className="font-medium">{row.original.total}</span> },
       {
-        accessorKey: "total",
-        header: "Total c/IGV",
-        cell: ({ row }) => <span className="font-medium">{row.original.total}</span>,
-      },
-      {
-        accessorKey: "origen",
-        header: "Origen",
+        accessorKey: "origen", header: "Origen",
         cell: ({ row }) => (
           <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${origenColors[row.original.origen]}`}>
             {row.original.origen}
           </span>
         ),
       },
-      {
-        accessorKey: "creadoPor",
-        header: "Creado por",
-        cell: ({ row }) => row.original.creadoPor ? (
-          <span className="text-sm">{row.original.creadoPor}</span>
-        ) : <span className="text-slate-300">—</span>,
-      },
-      {
-        id: "acciones",
-        header: "Acciones",
-        cell: ({ row }) => {
-          const p = row.original;
-          if (p.estado !== "PENDIENTE") return null;
-          return (
-            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-              <Button
-                variant="ghost" size="icon"
-                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                title="Confirmar"
-                onClick={() => setConfirmDialog(p)}
-              >
-                <CheckCircle className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost" size="icon"
-                className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                title="Rechazar"
-                onClick={() => { setRejectMotivo(""); setRejectDialog(p); }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          );
-        },
-      },
     ],
-    [isBandeja, expandedRows, filtersActive, allVisibleSelected, visiblePendingIds, selectedIds]
+    []
   );
-
-  const handleBulkConfirm = () => {
-    let totalLotes = 0;
-    const ids = selectedPedidos.map((p) => p.id);
-    for (const p of selectedPedidos) {
-      totalLotes += applyFifo(p.productos, p.numero);
-    }
-    setData((prev) =>
-      prev.map((p) => (ids.includes(p.id) ? { ...p, estado: "CONFIRMADO" } : p))
-    );
-    toast.success(`${ids.length} pedidos confirmados. Stock actualizado en ${totalLotes} lote(s).`);
-    setSelectedIds(new Set());
-    setBulkConfirmOpen(false);
-    setBulkForce(false);
-  };
-
-  const table = useReactTable({
+  const histTable = useReactTable({
     data: filteredData,
-    columns,
+    columns: histColumns,
     state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
@@ -519,26 +555,7 @@ export default function Pedidos() {
     initialState: { pagination: { pageSize: 20 } },
   });
 
-  const handleConfirm = () => {
-    if (!confirmDialog) return;
-    const lotesAfectados = applyFifo(confirmDialog.productos, confirmDialog.numero);
-    setData((prev) =>
-      prev.map((p) => p.id === confirmDialog.id ? { ...p, estado: "CONFIRMADO" } : p)
-    );
-    toast.success(`Pedido ${confirmDialog.numero} confirmado. Stock actualizado en ${lotesAfectados} lote(s).`);
-    setConfirmDialog(null);
-  };
-
-  const handleReject = () => {
-    if (!rejectDialog || !rejectMotivo.trim()) return;
-    setData((prev) =>
-      prev.map((p) => p.id === rejectDialog.id ? { ...p, estado: "RECHAZADO" } : p)
-    );
-    toast.success(`Pedido ${rejectDialog.numero} rechazado.`);
-    setRejectDialog(null);
-    setRejectMotivo("");
-  };
-
+  // ---------- Render ----------
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Page Header */}
@@ -546,15 +563,12 @@ export default function Pedidos() {
         <h1 className="text-2xl font-semibold text-foreground">
           {isBandeja ? "Bandeja de Pedidos" : "Todos los Pedidos"}
         </h1>
-        {isBandeja && (
+        {isBandeja ? (
           <p className="text-sm font-medium text-warning mt-1">
-            {pendingCount} pedidos pendientes de confirmación
+            {totalPendingCount} pedidos pendientes · {vendorCount} vendedores · Total S/ {totalSum.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </p>
-        )}
-        {!isBandeja && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Historial completo de pedidos
-          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-1">Historial completo de pedidos</p>
         )}
       </div>
 
@@ -563,7 +577,7 @@ export default function Pedidos() {
         <div className="relative flex-1 min-w-[240px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por N° pedido o cliente..."
+            placeholder="Buscar por N° pedido, cliente o vendedor..."
             className="pl-9 bg-card"
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
@@ -572,10 +586,8 @@ export default function Pedidos() {
 
         {isBandeja && (
           <>
-            <Select value={canalFilter} onValueChange={handleCanalChange}>
-              <SelectTrigger className="w-[180px] bg-card">
-                <SelectValue placeholder="Canal" />
-              </SelectTrigger>
+            <Select value={canalFilter} onValueChange={(v) => { setCanalFilter(v); if (v !== "all" && v !== "Tradicional") setRutaFilter("all"); }}>
+              <SelectTrigger className="w-[180px] bg-card"><SelectValue placeholder="Canal" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los canales</SelectItem>
                 <SelectItem value="Corporativo">Corporativo</SelectItem>
@@ -589,14 +601,8 @@ export default function Pedidos() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div>
-                    <Select
-                      value={rutaFilter}
-                      onValueChange={handleRutaChange}
-                      disabled={rutaDisabled}
-                    >
-                      <SelectTrigger className="w-[180px] bg-card">
-                        <SelectValue placeholder="Ruta" />
-                      </SelectTrigger>
+                    <Select value={rutaFilter} onValueChange={setRutaFilter} disabled={rutaDisabled}>
+                      <SelectTrigger className="w-[180px] bg-card"><SelectValue placeholder="Ruta" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todas las rutas</SelectItem>
                         {rutasDisponibles.map((r) => (
@@ -606,128 +612,293 @@ export default function Pedidos() {
                     </Select>
                   </div>
                 </TooltipTrigger>
-                {rutaDisabled && (
-                  <TooltipContent>
-                    Este canal no tiene rutas asignadas.
-                  </TooltipContent>
-                )}
+                {rutaDisabled && <TooltipContent>Este canal no tiene rutas asignadas.</TooltipContent>}
               </Tooltip>
             </TooltipProvider>
+
+            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+              Estado: PENDIENTE
+            </Badge>
           </>
         )}
-
-        {isBandeja && (
-          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-            Estado: PENDIENTE
-          </Badge>
-        )}
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card overflow-hidden">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((hg) => (
-              <TableRow key={hg.id} className="bg-slate-50 hover:bg-slate-50">
-                {hg.headers.map((header) => (
-                  <TableHead key={header.id} className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
+      {/* Body */}
+      {isBandeja ? (
+        <div className="rounded-lg border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50 hover:bg-slate-50">
+                <TableHead className="w-10"></TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">N° Pedido</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Cliente</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Entrega</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Estado</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Origen</TableHead>
+                <TableHead className="text-xs font-medium text-muted-foreground uppercase tracking-wide text-right">Acciones</TableHead>
               </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => {
-                const pedido = row.original;
-                const isExpanded = expandedRows.has(pedido.id);
-                const hasIssue = isBandeja && pedido.estado === "PENDIENTE" && pedidoHasStockIssue(pedido.productos);
-                const rowClass = hasIssue
-                  ? "h-12 bg-red-50 border-l-4 border-red-400 hover:bg-red-100/70 transition-colors cursor-pointer"
-                  : "h-12 hover:bg-slate-50/70 transition-colors cursor-pointer";
-
-                return (
-                  <Fragment key={row.id}>
-                    <TableRow
-                      className={rowClass}
-                      onClick={() => isBandeja && toggleRow(pedido.id)}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id} className="text-sm">
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </TableHeader>
+            <TableBody>
+              {groupSummary.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="h-24 text-center text-muted-foreground">No hay pedidos.</TableCell>
+                </TableRow>
+              ) : (
+                groupSummary.map((g) => {
+                  const collapsed = collapsedGroups.has(g.key);
+                  return (
+                    <Fragment key={g.key}>
+                      {/* LEVEL 1 — vendor header */}
+                      <TableRow
+                        className="bg-slate-100 border-l-4 border-[#1E3A5F] hover:bg-slate-100/90 cursor-pointer"
+                        onClick={() => toggleGroup(g.key)}
+                      >
+                        <TableCell className="py-2">
+                          {collapsed ? <ChevronDown className="h-4 w-4 text-[#1E3A5F]" /> : <ChevronUp className="h-4 w-4 text-[#1E3A5F]" />}
                         </TableCell>
-                      ))}
-                    </TableRow>
-                    {isBandeja && isExpanded && (
-                      <TableRow className="bg-slate-50/50">
-                        <TableCell colSpan={columns.length} className="p-0">
-                          <div className="px-8 py-3">
-                            <table className="w-full text-sm">
-                              <thead>
-                                <tr className="text-xs text-muted-foreground uppercase">
-                                  <th className="text-left py-1 font-medium">Producto</th>
-                                  <th className="text-right py-1 font-medium">Cantidad pedida</th>
-                                  <th className="text-right py-1 font-medium">Stock disponible total</th>
-                                  <th className="text-right py-1 font-medium">Estado cobertura</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {pedido.productos.map((prod) => {
-                                  const stockDisp = getStockDisponible(prod.sku);
-                                  const cubierto = stockDisp >= prod.cantidad;
-                                  return (
-                                    <tr key={prod.sku} className="border-t border-slate-100">
-                                      <td className="py-2 text-foreground">{prod.nombre}</td>
-                                      <td className="py-2 text-right font-medium">{prod.cantidad}u</td>
-                                      <td className="py-2 text-right text-muted-foreground">{stockDisp}u</td>
-                                      <td className="py-2 text-right">
-                                        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                          cubierto ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                                        }`}>
-                                          {cubierto ? "CUBIERTO" : "SIN STOCK"}
-                                        </span>
-                                      </td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
+                        <TableCell colSpan={6} className="py-2">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-[#1E3A5F] text-white flex items-center justify-center text-xs font-semibold">
+                              {vendorInitials(g.vendedor)}
+                            </div>
+                            <span className="font-semibold text-foreground">{g.vendedor}</span>
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${canalColors[g.canal] || "bg-slate-200 text-slate-600"}`}>
+                              {g.canal}
+                            </span>
+                            {g.ruta && (
+                              <span className="text-xs text-muted-foreground font-mono">{g.ruta}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">· {g.count} pedido{g.count === 1 ? "" : "s"}</span>
+                            <span className="text-xs font-medium text-foreground">
+                              · Total S/ {g.total.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
                           </div>
                         </TableCell>
+                        <TableCell className="py-2 text-right">
+                          {g.confirmable.length > 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-[#E8A020] text-[#E8A020] hover:bg-[#E8A020]/10 hover:text-[#E8A020]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBulkForce(false);
+                                setBulkConfirmGroup({ key: g.key, vendedor: g.vendedor, pedidos: g.confirmable });
+                              }}
+                            >
+                              Confirmar todos
+                            </Button>
+                          )}
+                        </TableCell>
                       </TableRow>
-                    )}
-                  </Fragment>
-                );
-              })
-            ) : (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
-                  No hay pedidos.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
 
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t bg-slate-50/50">
-          <p className="text-xs text-muted-foreground">
-            {table.getFilteredRowModel().rows.length} pedido(s)
-          </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Pág. {table.getState().pagination.pageIndex + 1} de {table.getPageCount()}
-            </span>
-            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+                      {/* LEVEL 2 — pedido rows */}
+                      {!collapsed && g.rows.map((p) => {
+                        const isExpanded = expandedRows.has(p.id);
+                        const isCarrito = p.kind === "CARRITO";
+                        const isSobrestock = p.kind === "SOBRESTOCK";
+                        const isEspecial = p.origen === "ESPECIAL";
+                        const hasIssue = p.estado === "PENDIENTE" && !isCarrito && pedidoHasStockIssue(p.productos);
+
+                        let rowClass = "h-12 cursor-pointer transition-colors hover:bg-slate-50/70";
+                        if (isCarrito) rowClass = "h-12 bg-amber-50 border-l-4 border-amber-300 opacity-80 cursor-pointer hover:bg-amber-100/60";
+                        else if (isSobrestock) rowClass = "h-12 bg-blue-50 border-l-4 border-blue-400 cursor-pointer hover:bg-blue-100/60";
+                        else if (isEspecial) rowClass = "h-12 bg-purple-50 border-l-4 border-purple-400 cursor-pointer hover:bg-purple-100/60";
+                        else if (hasIssue) rowClass = "h-12 bg-red-50 border-l-4 border-red-400 cursor-pointer hover:bg-red-100/70";
+
+                        const rowContent = (
+                          <TableRow key={p.id} className={rowClass} onClick={() => toggleRow(p.id)}>
+                            <TableCell className="pl-8">
+                              {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {isCarrito ? (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700">CARRITO AYER</span>
+                              ) : isSobrestock ? (
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700">SOBRESTOCK</span>
+                              ) : (
+                                <span className="font-medium">{p.numero}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">{p.cliente}</TableCell>
+                            <TableCell className="text-sm">
+                              {urgenciaStyle(p.urgencia) ? (
+                                <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${urgenciaStyle(p.urgencia)}`}>{p.urgencia}</span>
+                              ) : (
+                                <span className="text-muted-foreground">{p.urgencia}</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm">
+                              {!isCarrito && (
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoColors[p.estado] || "bg-slate-100 text-slate-600"}`}>
+                                  {p.estado}
+                                </span>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-sm font-medium">{p.total}</TableCell>
+                            <TableCell className="text-sm">
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${origenColors[p.origen]}`}>
+                                {p.origen}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {!isCarrito && p.estado === "PENDIENTE" && (
+                                <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+                                  <Button
+                                    variant="ghost" size="icon"
+                                    className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                    title="Confirmar"
+                                    onClick={() => setConfirmDialog(p)}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost" size="icon"
+                                    className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                    title="Rechazar"
+                                    onClick={() => { setRejectMotivo(""); setRejectDialog(p); }}
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        );
+
+                        return (
+                          <Fragment key={p.id}>
+                            {isCarrito ? (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>{rowContent}</TooltipTrigger>
+                                  <TooltipContent side="top">
+                                    Productos del sobrestock de ayer que no se vendieron.<br />
+                                    Aún están en el camión del vendedor.
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ) : rowContent}
+
+                            {/* LEVEL 3 — product detail */}
+                            {isExpanded && (
+                              <TableRow className="bg-slate-50/50">
+                                <TableCell colSpan={8} className="p-0">
+                                  <div className="px-12 py-3">
+                                    {isCarrito && (
+                                      <div className="mb-2 flex items-start gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                                        <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                        Vista referencial. Estos productos ya están en el camión del vendedor.
+                                      </div>
+                                    )}
+                                    <table className="w-full text-sm">
+                                      <thead>
+                                        <tr className="text-xs text-muted-foreground uppercase">
+                                          <th className="text-left py-1 font-medium">Producto</th>
+                                          <th className="text-left py-1 font-medium">SKU</th>
+                                          <th className="text-right py-1 font-medium">Cantidad pedida</th>
+                                          <th className="text-right py-1 font-medium">Stock disponible</th>
+                                          {isEspecial && <th className="text-right py-1 font-medium">Precio orig.</th>}
+                                          {isEspecial && <th className="text-right py-1 font-medium">Precio especial</th>}
+                                          {!isCarrito && <th className="text-right py-1 font-medium">Cobertura</th>}
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {p.productos.map((prod) => {
+                                          const stockDisp = getStockDisponible(prod.sku);
+                                          const cubierto = stockDisp >= prod.cantidad;
+                                          return (
+                                            <tr key={prod.sku} className="border-t border-slate-100">
+                                              <td className="py-2 text-foreground">{prod.nombre}</td>
+                                              <td className="py-2 text-muted-foreground font-mono text-xs">{prod.sku}</td>
+                                              <td className="py-2 text-right font-medium">{prod.cantidad}u</td>
+                                              <td className="py-2 text-right text-muted-foreground">{stockDisp}u</td>
+                                              {isEspecial && (
+                                                <td className="py-2 text-right text-muted-foreground line-through">
+                                                  S/ {prod.precioOriginal?.toFixed(2) ?? "—"}
+                                                </td>
+                                              )}
+                                              {isEspecial && (
+                                                <td className="py-2 text-right font-semibold text-purple-700">
+                                                  S/ {prod.precioEspecial?.toFixed(2) ?? "—"}
+                                                </td>
+                                              )}
+                                              {!isCarrito && (
+                                                <td className="py-2 text-right">
+                                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${cubierto ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                                                    {cubierto ? "CUBIERTO" : "SIN STOCK"}
+                                                  </span>
+                                                </td>
+                                              )}
+                                            </tr>
+                                          );
+                                        })}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </Fragment>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      ) : (
+        // Historical view
+        <div className="rounded-lg border bg-card overflow-hidden">
+          <Table>
+            <TableHeader>
+              {histTable.getHeaderGroups().map((hg) => (
+                <TableRow key={hg.id} className="bg-slate-50 hover:bg-slate-50">
+                  {hg.headers.map((header) => (
+                    <TableHead key={header.id} className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {histTable.getRowModel().rows.length ? (
+                histTable.getRowModel().rows.map((row) => (
+                  <TableRow key={row.id} className="h-12 hover:bg-slate-50/70">
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="text-sm">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={histColumns.length} className="h-24 text-center text-muted-foreground">No hay pedidos.</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          <div className="flex items-center justify-between px-4 py-3 border-t bg-slate-50/50">
+            <p className="text-xs text-muted-foreground">{histTable.getFilteredRowModel().rows.length} pedido(s)</p>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => histTable.previousPage()} disabled={!histTable.getCanPreviousPage()}>
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Pág. {histTable.getState().pagination.pageIndex + 1} de {histTable.getPageCount()}
+              </span>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => histTable.nextPage()} disabled={!histTable.getCanNextPage()}>
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Confirm Dialog */}
       <AlertDialog open={!!confirmDialog} onOpenChange={() => setConfirmDialog(null)}>
@@ -739,20 +910,16 @@ export default function Pedidos() {
               <br />Los precios quedarán congelados al confirmar.
             </AlertDialogDescription>
           </AlertDialogHeader>
-
           {fifoResult && !fifoResult.success && (
             <div className="rounded-md bg-red-50 border border-red-200 p-3 space-y-2">
               {fifoResult.warnings.map((w) => (
                 <div key={w.sku} className="flex items-start gap-2 text-sm text-red-700">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <span>
-                    Stock insuficiente para <strong>{w.nombre}</strong>: necesitas {w.needed}u, disponible {w.available}u. ¿Confirmar de todas formas?
-                  </span>
+                  <span>Stock insuficiente para <strong>{w.nombre}</strong>: necesitas {w.needed}u, disponible {w.available}u.</span>
                 </div>
               ))}
             </div>
           )}
-
           {confirmDialog && (
             <div className="rounded-md bg-muted/50 p-3">
               <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Productos del pedido</p>
@@ -764,14 +931,10 @@ export default function Pedidos() {
               ))}
             </div>
           )}
-
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             {fifoResult && !fifoResult.success ? (
-              <AlertDialogAction
-                onClick={handleConfirm}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
+              <AlertDialogAction onClick={handleConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                 Confirmar de todas formas
               </AlertDialogAction>
             ) : (
@@ -786,69 +949,30 @@ export default function Pedidos() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Rechazar pedido?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta acción notificará al cliente.
-            </AlertDialogDescription>
+            <AlertDialogDescription>Esta acción notificará al cliente.</AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-2">
-            <label className="text-sm font-medium">
-              Motivo de rechazo <span className="text-red-600">*</span>
-            </label>
-            <Textarea
-              className="mt-1.5"
-              placeholder="Escribe el motivo..."
-              value={rejectMotivo}
-              onChange={(e) => setRejectMotivo(e.target.value)}
-            />
+            <label className="text-sm font-medium">Motivo de rechazo <span className="text-red-600">*</span></label>
+            <Textarea className="mt-1.5" placeholder="Escribe el motivo..." value={rejectMotivo} onChange={(e) => setRejectMotivo(e.target.value)} />
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleReject}
-              disabled={!rejectMotivo.trim()}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleReject} disabled={!rejectMotivo.trim()} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Rechazar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Sticky Bulk Action Bar */}
-      {isBandeja && selectedPedidos.length > 0 && (
-        <div className="bg-[#1E3A5F] text-white rounded-lg shadow-lg px-6 py-3 fixed bottom-6 left-72 right-6 flex items-center justify-between gap-4 z-40">
-          <div className="flex items-center gap-6 text-sm">
-            <span className="font-medium">{selectedPedidos.length} pedidos seleccionados</span>
-            <span className="opacity-80">
-              Total: S/ {selectedTotal.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="bg-transparent border-white/40 text-white hover:bg-white/10 hover:text-white"
-              onClick={() => setSelectedIds(new Set())}
-            >
-              Cancelar selección
-            </Button>
-            <Button
-              className="bg-[#E8A020] text-white font-medium hover:bg-[#d18f17]"
-              onClick={() => { setBulkForce(false); setBulkConfirmOpen(true); }}
-            >
-              Confirmar todos
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* Bulk Confirm Dialog */}
-      <AlertDialog open={bulkConfirmOpen} onOpenChange={(o) => { if (!o) { setBulkConfirmOpen(false); setBulkForce(false); } }}>
+      {/* Bulk Confirm Dialog (per vendor group) */}
+      <AlertDialog open={!!bulkConfirmGroup} onOpenChange={(o) => { if (!o) { setBulkConfirmGroup(null); setBulkForce(false); } }}>
         <AlertDialogContent className="max-w-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Confirmar {selectedPedidos.length} pedidos?</AlertDialogTitle>
+            <AlertDialogTitle>
+              ¿Confirmar {bulkConfirmGroup?.pedidos.length ?? 0} pedidos de {bulkConfirmGroup?.vendedor}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Se confirmarán {selectedPedidos.length} pedidos por un total de S/ {selectedTotal.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
+              Total S/ {bulkTotal.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}.
               Los precios quedarán congelados y el stock se actualizará automáticamente.
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -873,8 +997,8 @@ export default function Pedidos() {
           )}
 
           <div className="rounded-md bg-muted/50 p-3 max-h-48 overflow-auto">
-            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Pedidos seleccionados</p>
-            {selectedPedidos.map((p) => (
+            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Pedidos a confirmar</p>
+            {bulkConfirmGroup?.pedidos.map((p) => (
               <div key={p.id} className="flex justify-between text-sm py-0.5">
                 <span><strong>{p.numero}</strong> — {p.cliente}</span>
                 <span className="font-medium">{p.total}</span>
@@ -885,11 +1009,8 @@ export default function Pedidos() {
           <AlertDialogFooter>
             {bulkWarnings.length > 0 && !bulkForce ? (
               <>
-                <AlertDialogCancel onClick={() => setBulkConfirmOpen(false)}>Revisar antes de confirmar</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleBulkConfirm}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
+                <AlertDialogCancel onClick={() => setBulkConfirmGroup(null)}>Revisar antes de confirmar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBulkConfirm} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                   Confirmar todos de todas formas
                 </AlertDialogAction>
               </>
