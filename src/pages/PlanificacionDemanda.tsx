@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { format } from "date-fns";
-import { CalendarIcon, ShoppingCart, Package, AlertTriangle, XCircle, ChevronDown } from "lucide-react";
+import { CalendarIcon, ShoppingCart, Package, AlertTriangle, XCircle, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -8,11 +8,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 type Estado = "CUBIERTO" | "EN_RIESGO" | "SIN_STOCK" | "SOBRESTOCK";
+
+interface PedidoDemanda {
+  num: string;
+  cliente: string;
+  vendedor: string;
+  canal: string;
+  cantidad: number;
+  fecha: Date; // entrega date
+}
 
 interface DemandaRow {
   producto: string;
@@ -20,35 +27,76 @@ interface DemandaRow {
   requerido: number;
   disponible: number;
   canales: string[];
+  pedidos: PedidoDemanda[];
 }
 
+const today = new Date(); today.setHours(0, 0, 0, 0);
+const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+const d = (s: string) => {
+  // dd/mm/yyyy
+  const [dd, mm, yyyy] = s.split("/").map(Number);
+  return new Date(yyyy, mm - 1, dd);
+};
+
 const MOCK_DEMANDA: DemandaRow[] = [
-  { producto: "Panetón Clásico 900g", sku: "PAN-CL-900", requerido: 145, disponible: 85, canales: ["Tradicional", "Moderno"] },
-  { producto: "Pan de Molde Blanco 500g", sku: "PAN-MOL-BLA", requerido: 80, disponible: 120, canales: ["Moderno", "Corporativo"] },
-  { producto: "Keke Marmoleado 400g", sku: "KEK-MAR-400", requerido: 60, disponible: 90, canales: ["Tradicional"] },
-  { producto: "Empanada Pollo x12", sku: "EMP-POL-12", requerido: 35, disponible: 30, canales: ["Directa"] },
-  { producto: "Croissant Mantequilla", sku: "CRO-MAN", requerido: 28, disponible: 0, canales: ["Moderno"] },
-  { producto: "Torta Tres Leches 1kg", sku: "TOR-TRL-1K", requerido: 15, disponible: 15, canales: ["Corporativo"] },
-  { producto: "Panetón Chocolate 900g", sku: "PAN-CHO-900", requerido: 90, disponible: 40, canales: ["Tradicional", "Moderno"] },
-  { producto: "Pan Integral 500g", sku: "PAN-INT-500", requerido: 22, disponible: 0, canales: ["Moderno"] },
+  {
+    producto: "Panetón Clásico 900g", sku: "PAN-CL-900", requerido: 145, disponible: 85, canales: ["Tradicional", "Moderno"],
+    pedidos: [
+      { num: "PED-2026-0045", cliente: "Bodega San Martín", vendedor: "Carlos Ríos", canal: "Tradicional", cantidad: 20, fecha: today },
+      { num: "PED-2026-0039", cliente: "Minimarket Los Andes", vendedor: "Carlos Ríos", canal: "Tradicional", cantidad: 15, fecha: today },
+      { num: "PED-2026-0042", cliente: "Bodega Norte", vendedor: "Ana Villanueva", canal: "Tradicional", cantidad: 40, fecha: tomorrow },
+      { num: "PED-2026-0044", cliente: "Supermercados Plaza", vendedor: "Juan López", canal: "Moderno", cantidad: 70, fecha: d("02/05/2026") },
+    ],
+  },
+  {
+    producto: "Pan de Molde Blanco 500g", sku: "PAN-MOL-BLA", requerido: 80, disponible: 120, canales: ["Moderno", "Corporativo"],
+    pedidos: [
+      { num: "PED-2026-0027", cliente: "Tienda Señora Rosa", vendedor: "Carlos Ríos", canal: "Tradicional", cantidad: 30, fecha: today },
+      { num: "PED-2026-0032", cliente: "Bodega Santa Rosa", vendedor: "María Torres", canal: "Tradicional", cantidad: 50, fecha: tomorrow },
+    ],
+  },
+  {
+    producto: "Keke Marmoleado 400g", sku: "KEK-MAR-400", requerido: 60, disponible: 90, canales: ["Tradicional"],
+    pedidos: [
+      { num: "PED-2026-0025", cliente: "Tienda San Pedro", vendedor: "Pedro Soto", canal: "Tradicional", cantidad: 25, fecha: today },
+      { num: "PED-2026-0029", cliente: "Distribuidora Piura", vendedor: "Luis Paredes", canal: "Tradicional", cantidad: 35, fecha: d("30/04/2026") },
+    ],
+  },
+  {
+    producto: "Empanada Pollo x12", sku: "EMP-POL-12", requerido: 35, disponible: 30, canales: ["Directa"],
+    pedidos: [
+      { num: "PED-2026-0043", cliente: "Distribuidora Lima", vendedor: "Pedro Soto", canal: "Directa", cantidad: 18, fecha: today },
+      { num: "PED-2026-0033", cliente: "Bodega El Progreso", vendedor: "Carlos Ríos", canal: "Tradicional", cantidad: 17, fecha: tomorrow },
+    ],
+  },
+  {
+    producto: "Croissant Mantequilla", sku: "CRO-MAN", requerido: 28, disponible: 0, canales: ["Moderno"],
+    pedidos: [
+      { num: "PED-2026-0026", cliente: "Tienda El Carmen", vendedor: "María Torres", canal: "Tradicional", cantidad: 12, fecha: today },
+      { num: "PED-2026-0038", cliente: "Minimarket Don José", vendedor: "María Torres", canal: "Tradicional", cantidad: 16, fecha: today },
+    ],
+  },
+  {
+    producto: "Torta Tres Leches 1kg", sku: "TOR-TRL-1K", requerido: 15, disponible: 15, canales: ["Corporativo"],
+    pedidos: [
+      { num: "PED-2026-0040", cliente: "Metro San Isidro", vendedor: "Juan López", canal: "Moderno", cantidad: 15, fecha: tomorrow },
+    ],
+  },
+  {
+    producto: "Panetón Chocolate 900g", sku: "PAN-CHO-900", requerido: 90, disponible: 40, canales: ["Tradicional", "Moderno"],
+    pedidos: [
+      { num: "PED-2026-0041", cliente: "Tienda Piura Centro", vendedor: "Luis Paredes", canal: "Tradicional", cantidad: 30, fecha: today },
+      { num: "PED-2026-0035", cliente: "Bodega El Bosque", vendedor: "Luis Paredes", canal: "Tradicional", cantidad: 35, fecha: tomorrow },
+      { num: "PED-2026-0028", cliente: "Colegio San Agustín", vendedor: "Roberto Chávez", canal: "Corporativo", cantidad: 25, fecha: d("30/04/2026") },
+    ],
+  },
+  {
+    producto: "Pan Integral 500g", sku: "PAN-INT-500", requerido: 22, disponible: 0, canales: ["Moderno"],
+    pedidos: [
+      { num: "PED-2026-0036", cliente: "Distribuidora Trujillo", vendedor: "Ana Villanueva", canal: "Tradicional", cantidad: 22, fecha: tomorrow },
+    ],
+  },
 ];
-
-const MOCK_LOTES: Record<string, Array<{ lote: string; venc: string; dias: string; cond: "OPTIMO" | "PROXIMO_VENCER" | "VENCIDO" | "DEFECTO_ESTETICO"; stock: number }>> = {
-  "PAN-CL-900": [
-    { lote: "L-2026-010", venc: "16/03/2026", dias: "vencido", cond: "VENCIDO", stock: 8 },
-    { lote: "L-2026-011", venc: "21/03/2026", dias: "1 día", cond: "PROXIMO_VENCER", stock: 40 },
-    { lote: "L-2026-012", venc: "30/04/2026", dias: "41 días", cond: "OPTIMO", stock: 45 },
-  ],
-};
-
-const MOCK_PEDIDOS: Record<string, Array<{ num: string; cliente: string; vendedor: string; canal: string; cantidad: number; entrega: string }>> = {
-  "PAN-CL-900": [
-    { num: "PED-2026-0045", cliente: "Bodega San Martín", vendedor: "Carlos Ríos", canal: "Tradicional", cantidad: 20, entrega: "Hoy" },
-    { num: "PED-2026-0039", cliente: "Minimarket Los Andes", vendedor: "Carlos Ríos", canal: "Tradicional", cantidad: 15, entrega: "Hoy" },
-    { num: "PED-2026-0042", cliente: "Bodega Norte", vendedor: "Ana Villanueva", canal: "Tradicional", cantidad: 40, entrega: "Hoy" },
-    { num: "PED-2026-0044", cliente: "Supermercados Plaza", vendedor: "Juan López", canal: "Moderno", cantidad: 70, entrega: "Hoy" },
-  ],
-};
 
 function getEstado(req: number, disp: number): Estado {
   if (disp === 0) return "SIN_STOCK";
@@ -66,28 +114,29 @@ const estadoBadge: Record<Estado, { label: string; cls: string }> = {
   SOBRESTOCK: { label: "SOBRESTOCK", cls: "bg-blue-100 text-blue-700 hover:bg-blue-100" },
 };
 
-const condBadge: Record<string, { label: string; cls: string }> = {
-  OPTIMO: { label: "ÓPTIMO", cls: "bg-green-100 text-green-700" },
-  PROXIMO_VENCER: { label: "PRÓXIMO VENCER", cls: "bg-amber-100 text-amber-700" },
-  VENCIDO: { label: "VENCIDO", cls: "bg-red-100 text-red-700" },
-  DEFECTO_ESTETICO: { label: "DEFECTO ESTÉTICO", cls: "bg-orange-100 text-orange-700" },
+const canalBadgeCls: Record<string, string> = {
+  Tradicional: "bg-violet-100 text-violet-700",
+  Moderno: "bg-sky-100 text-sky-700",
+  Corporativo: "bg-indigo-100 text-indigo-700",
+  Directa: "bg-emerald-100 text-emerald-700",
 };
 
-const condRowBg: Record<string, string> = {
-  OPTIMO: "bg-white",
-  PROXIMO_VENCER: "bg-amber-50",
-  VENCIDO: "bg-red-50 opacity-60",
-  DEFECTO_ESTETICO: "bg-orange-50",
-};
+function isSameDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function entregaBadge(fecha: Date) {
+  if (isSameDay(fecha, today)) return { label: "HOY", cls: "bg-red-100 text-red-700" };
+  if (isSameDay(fecha, tomorrow)) return { label: "MAÑANA", cls: "bg-amber-100 text-amber-700" };
+  return { label: format(fecha, "dd/MM/yyyy"), cls: "bg-slate-100 text-slate-600" };
+}
 
 export default function PlanificacionDemanda() {
-  const today = new Date();
   const [from, setFrom] = useState<Date | undefined>(today);
   const [to, setTo] = useState<Date | undefined>(today);
   const [estadoFilter, setEstadoFilter] = useState("TODOS");
   const [canalFilter, setCanalFilter] = useState("TODOS");
-  const [selected, setSelected] = useState<DemandaRow | null>(null);
-  const [pedidosOpen, setPedidosOpen] = useState(false);
+  const [expandedSku, setExpandedSku] = useState<string | null>(null);
 
   const enriched = useMemo(() => {
     return MOCK_DEMANDA.map((d) => ({
@@ -110,14 +159,12 @@ export default function PlanificacionDemanda() {
       .sort((a, b) => estadoOrder[a.estado] - estadoOrder[b.estado]);
   }, [enriched, estadoFilter, canalFilter]);
 
-  const kpis = useMemo(() => {
-    return {
-      skus: enriched.length,
-      unidades: enriched.reduce((s, r) => s + r.requerido, 0),
-      enRiesgo: enriched.filter((r) => r.estado === "EN_RIESGO").length,
-      sinStock: enriched.filter((r) => r.estado === "SIN_STOCK").length,
-    };
-  }, [enriched]);
+  const kpis = useMemo(() => ({
+    skus: enriched.length,
+    unidades: enriched.reduce((s, r) => s + r.requerido, 0),
+    enRiesgo: enriched.filter((r) => r.estado === "EN_RIESGO").length,
+    sinStock: enriched.filter((r) => r.estado === "SIN_STOCK").length,
+  }), [enriched]);
 
   const setQuick = (key: "hoy" | "manana" | "semana") => {
     const t = new Date();
@@ -138,10 +185,6 @@ export default function PlanificacionDemanda() {
     if (pct >= 1) return "bg-orange-500";
     return "bg-red-500";
   };
-
-  const lotes = selected ? (MOCK_LOTES[selected.sku] ?? []) : [];
-  const pedidos = selected ? (MOCK_PEDIDOS[selected.sku] ?? []) : [];
-  const totalUsable = lotes.filter((l) => l.cond !== "VENCIDO").reduce((s, l) => s + l.stock, 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -209,6 +252,7 @@ export default function PlanificacionDemanda() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-8"></TableHead>
                 <TableHead>Producto</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead className="text-right">Requerido</TableHead>
@@ -219,129 +263,91 @@ export default function PlanificacionDemanda() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((r) => (
-                <TableRow key={r.sku} className="cursor-pointer" onClick={() => setSelected(r)}>
-                  <TableCell className="font-medium">{r.producto}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">{r.sku}</TableCell>
-                  <TableCell className="text-right">{r.requerido}u</TableCell>
-                  <TableCell className="text-right">{r.disponible}u</TableCell>
-                  <TableCell className={cn(
-                    "text-right",
-                    r.deficit > 0 && "text-green-600",
-                    r.deficit < 0 && "text-red-600 font-bold",
-                    r.deficit === 0 && "text-slate-500",
-                  )}>
-                    {r.deficit > 0 ? `+${r.deficit}` : r.deficit}u
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                        <div className={cn("h-full transition-all", coberturaColor(r.cobertura))} style={{ width: `${r.cobertura}%` }} />
-                      </div>
-                      <span className="text-xs text-slate-600 w-10 text-right">{Math.round(r.cobertura)}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={estadoBadge[r.estado].cls}>{estadoBadge[r.estado].label}</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {filtered.map((r) => {
+                const expanded = expandedSku === r.sku;
+                const fechas = r.pedidos.map((p) => p.fecha.getTime());
+                const minF = fechas.length ? new Date(Math.min(...fechas)) : null;
+                const maxF = fechas.length ? new Date(Math.max(...fechas)) : null;
+                const totalDemandado = r.pedidos.reduce((s, p) => s + p.cantidad, 0);
+                return (
+                  <Fragment key={r.sku}>
+                    <TableRow
+                      className={cn("cursor-pointer", expanded && "bg-secondary hover:bg-secondary")}
+                      onClick={() => setExpandedSku(expanded ? null : r.sku)}
+                    >
+                      <TableCell className="pr-0">
+                        <ChevronRight className={cn("h-4 w-4 text-slate-500 transition-transform", expanded && "rotate-90")} />
+                      </TableCell>
+                      <TableCell className="font-medium">{r.producto}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs">{r.sku}</TableCell>
+                      <TableCell className="text-right">{r.requerido}u</TableCell>
+                      <TableCell className="text-right">{r.disponible}u</TableCell>
+                      <TableCell className={cn(
+                        "text-right",
+                        r.deficit > 0 && "text-green-600",
+                        r.deficit < 0 && "text-red-600 font-bold",
+                        r.deficit === 0 && "text-slate-500",
+                      )}>
+                        {r.deficit > 0 ? `+${r.deficit}` : r.deficit}u
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+                            <div className={cn("h-full transition-all", coberturaColor(r.cobertura))} style={{ width: `${r.cobertura}%` }} />
+                          </div>
+                          <span className="text-xs text-slate-600 w-10 text-right">{Math.round(r.cobertura)}%</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={estadoBadge[r.estado].cls}>{estadoBadge[r.estado].label}</Badge>
+                      </TableCell>
+                    </TableRow>
+
+                    {expanded && (
+                      <>
+                        <TableRow className="bg-muted hover:bg-muted">
+                          <TableCell colSpan={8} className="py-2 px-4 text-[11px] uppercase tracking-wide text-muted-foreground">
+                            Pedidos que demandan este producto — {r.pedidos.length} pedidos
+                            {minF && maxF && (
+                              <> · entrega entre {format(minF, "dd/MM/yyyy")} y {format(maxF, "dd/MM/yyyy")}</>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                        {r.pedidos.map((p, idx) => {
+                          const eb = entregaBadge(p.fecha);
+                          const isLast = idx === r.pedidos.length - 1;
+                          return (
+                            <TableRow key={p.num} className={cn("bg-muted hover:bg-muted text-xs", isLast && "border-b-2 border-slate-300")}>
+                              <TableCell></TableCell>
+                              <TableCell colSpan={2} className="py-2">
+                                <div className="font-medium text-slate-700">{p.num}</div>
+                                <div className="text-slate-500">{p.cliente}</div>
+                              </TableCell>
+                              <TableCell className="py-2">{p.vendedor}</TableCell>
+                              <TableCell className="py-2">
+                                <Badge className={cn("text-[10px]", canalBadgeCls[p.canal] ?? "bg-slate-100 text-slate-600")}>{p.canal}</Badge>
+                              </TableCell>
+                              <TableCell className="py-2 text-right font-medium">{p.cantidad}u</TableCell>
+                              <TableCell className="py-2" colSpan={2}>
+                                <Badge className={cn("text-[10px]", eb.cls)}>{eb.label}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        <TableRow className="bg-muted hover:bg-muted">
+                          <TableCell colSpan={8} className="py-1.5 px-2.5 text-[11px] text-muted-foreground text-right">
+                            Total demandado: {totalDemandado}u en {r.pedidos.length} pedidos
+                          </TableCell>
+                        </TableRow>
+                      </>
+                    )}
+                  </Fragment>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
-
-      {/* Side panel */}
-      <Sheet open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <SheetContent className="w-96 sm:max-w-md overflow-y-auto">
-          {selected && (
-            <>
-              <SheetHeader>
-                <SheetTitle>{selected.producto}</SheetTitle>
-                <p className="text-xs text-muted-foreground">{selected.sku}</p>
-                <div className="pt-2">
-                  <Badge className={estadoBadge[getEstado(selected.requerido, selected.disponible)].cls}>
-                    {estadoBadge[getEstado(selected.requerido, selected.disponible)].label}
-                  </Badge>
-                </div>
-                <div className="flex gap-3 text-xs pt-2 text-slate-600">
-                  <span>Requerido: <b>{selected.requerido}u</b></span>
-                  <span>Disponible: <b>{selected.disponible}u</b></span>
-                  <span>Déficit: <b>{selected.disponible - selected.requerido}u</b></span>
-                </div>
-              </SheetHeader>
-
-              <div className="mt-6 space-y-2">
-                <h3 className="text-sm font-semibold">Lotes disponibles</h3>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Lote</TableHead>
-                      <TableHead className="text-xs">Venc.</TableHead>
-                      <TableHead className="text-xs">Días</TableHead>
-                      <TableHead className="text-xs">Condición</TableHead>
-                      <TableHead className="text-xs text-right">Stock</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lotes.map((l) => (
-                      <TableRow key={l.lote} className={condRowBg[l.cond]}>
-                        <TableCell className="text-xs font-medium">{l.lote}</TableCell>
-                        <TableCell className="text-xs">{l.venc}</TableCell>
-                        <TableCell className="text-xs">{l.dias}</TableCell>
-                        <TableCell><Badge className={cn("text-[10px]", condBadge[l.cond].cls)}>{condBadge[l.cond].label}</Badge></TableCell>
-                        <TableCell className={cn("text-xs text-right", l.cond === "VENCIDO" && "line-through")}>{l.stock}u</TableCell>
-                      </TableRow>
-                    ))}
-                    {lotes.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground">Sin lotes registrados</TableCell></TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-                <p className="text-xs text-slate-600 pt-2">Total usable: <b>{totalUsable}u</b></p>
-              </div>
-
-              <div className="mt-6">
-                <Collapsible open={pedidosOpen} onOpenChange={setPedidosOpen}>
-                  <CollapsibleTrigger className="flex items-center gap-2 text-sm font-semibold w-full text-left">
-                    <ChevronDown className={cn("h-4 w-4 transition-transform", !pedidosOpen && "-rotate-90")} />
-                    Pedidos que demandan este producto ({pedidos.length})
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="mt-2">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="text-xs">N°</TableHead>
-                          <TableHead className="text-xs">Cliente</TableHead>
-                          <TableHead className="text-xs">Vendedor</TableHead>
-                          <TableHead className="text-xs">Canal</TableHead>
-                          <TableHead className="text-xs text-right">Cant.</TableHead>
-                          <TableHead className="text-xs">Entrega</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {pedidos.map((p) => (
-                          <TableRow key={p.num}>
-                            <TableCell className="text-xs font-medium">{p.num}</TableCell>
-                            <TableCell className="text-xs">{p.cliente}</TableCell>
-                            <TableCell className="text-xs">{p.vendedor}</TableCell>
-                            <TableCell className="text-xs">{p.canal}</TableCell>
-                            <TableCell className="text-xs text-right">{p.cantidad}u</TableCell>
-                            <TableCell className="text-xs">{p.entrega}</TableCell>
-                          </TableRow>
-                        ))}
-                        {pedidos.length === 0 && (
-                          <TableRow><TableCell colSpan={6} className="text-center text-xs text-muted-foreground">Sin pedidos pendientes</TableCell></TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </CollapsibleContent>
-                </Collapsible>
-              </div>
-            </>
-          )}
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
