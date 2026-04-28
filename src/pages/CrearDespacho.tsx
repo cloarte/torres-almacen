@@ -208,7 +208,7 @@ function buildProductos(): ProductoDespacho[] {
 // ==================== STEP INDICATOR ====================
 
 function StepIndicator({ current }: { current: number }) {
-  const steps = ["Seleccionar Ruta", "Asignar Lotes", "Confirmar"];
+  const steps = ["Seleccionar Vendedor", "Asignar Lotes", "Confirmar"];
   return (
     <div className="flex items-center justify-center gap-0 mb-8">
       {steps.map((label, i) => {
@@ -258,8 +258,8 @@ export default function CrearDespacho() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
-  // Step 1 state
-  const [selectedRutaId, setSelectedRutaId] = useState("");
+  // Step 1 state — vendor selection
+  const [selectedVendedorId, setSelectedVendedorId] = useState("");
   const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
 
   // Step 2 state
@@ -268,13 +268,12 @@ export default function CrearDespacho() {
   // Step 3 state
   const [verified, setVerified] = useState(false);
 
-  const selectedRuta = rutas.find((r) => r.id === selectedRutaId);
-  const pedidosForRuta = selectedRutaId ? (pedidosPorRuta[selectedRutaId] || []) : [];
+  const selectedVendedor = vendedores.find((v) => v.id === selectedVendedorId);
+  const pedidosForVendedor = selectedVendedorId ? (pedidosPorVendedor[selectedVendedorId] || []) : [];
 
-  // When ruta changes, pre-select all pedidos
-  const handleRutaChange = (rutaId: string) => {
-    setSelectedRutaId(rutaId);
-    const pedidos = pedidosPorRuta[rutaId] || [];
+  const handleVendedorSelect = (vendedorId: string) => {
+    setSelectedVendedorId(vendedorId);
+    const pedidos = pedidosPorVendedor[vendedorId] || [];
     setSelectedPedidos(new Set(pedidos.map((p) => p.id)));
   };
 
@@ -288,10 +287,10 @@ export default function CrearDespacho() {
   };
 
   const toggleAllPedidos = () => {
-    if (selectedPedidos.size === pedidosForRuta.length) {
+    if (selectedPedidos.size === pedidosForVendedor.length) {
       setSelectedPedidos(new Set());
     } else {
-      setSelectedPedidos(new Set(pedidosForRuta.map((p) => p.id)));
+      setSelectedPedidos(new Set(pedidosForVendedor.map((p) => p.id)));
     }
   };
 
