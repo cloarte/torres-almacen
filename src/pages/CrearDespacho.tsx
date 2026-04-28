@@ -294,7 +294,7 @@ export default function CrearDespacho() {
     }
   };
 
-  const totalProductosSeleccionados = pedidosForRuta
+  const totalProductosSeleccionados = pedidosForVendedor
     .filter((p) => selectedPedidos.has(p.id))
     .reduce((sum, p) => sum + p.productos, 0);
 
@@ -389,53 +389,60 @@ export default function CrearDespacho() {
 
       {/* ========== STEP 1 ========== */}
       {step === 1 && (
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Ruta</CardTitle>
+              <CardTitle className="text-lg">Vendedor</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>
-                  Ruta <span className="text-danger">*</span>
-                </Label>
-                <Select value={selectedRutaId} onValueChange={handleRutaChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar ruta..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rutas.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nombre} — {r.vendedor}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {vendedores.map((v) => {
+                  const selected = v.id === selectedVendedorId;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => handleVendedorSelect(v.id)}
+                      className={cn(
+                        "flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all hover:bg-slate-50",
+                        selected ? "border-[#E8A020] bg-amber-50/40" : "border-border",
+                      )}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-white text-sm font-semibold">
+                        {getInitials(v.nombre)}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-foreground">{v.nombre}</span>
+                          <span className={cn(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            canalColors[v.canal],
+                          )}>
+                            {v.canal}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {v.canal === "Tradicional" && v.ruta ? v.ruta : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span>{v.numPedidos} pedidos confirmados</span>
+                          <span>·</span>
+                          <span className="font-medium text-foreground">{v.totalSoles}</span>
+                          <span>·</span>
+                          <span>{v.totalUnidades}u</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-
-              {selectedRuta && (
-                <div className="grid grid-cols-3 gap-4 rounded-lg bg-muted/50 p-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendedor</p>
-                    <p className="text-sm font-medium mt-0.5">{selectedRuta.vendedor}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Días</p>
-                    <p className="text-sm font-medium mt-0.5">{selectedRuta.dias}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Clientes</p>
-                    <p className="text-sm font-medium mt-0.5">{selectedRuta.numClientes}</p>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {selectedRutaId && pedidosForRuta.length > 0 && (
+          {selectedVendedorId && pedidosForVendedor.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Pedidos LISTO_DESPACHO para esta ruta</CardTitle>
+                <CardTitle className="text-lg">Pedidos LISTO_DESPACHO de este vendedor</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-lg border overflow-hidden">
@@ -444,7 +451,7 @@ export default function CrearDespacho() {
                       <TableRow className="bg-slate-50 hover:bg-slate-50">
                         <TableHead className="w-10">
                           <Checkbox
-                            checked={selectedPedidos.size === pedidosForRuta.length}
+                            checked={selectedPedidos.size === pedidosForVendedor.length}
                             onCheckedChange={toggleAllPedidos}
                           />
                         </TableHead>
@@ -455,7 +462,7 @@ export default function CrearDespacho() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pedidosForRuta.map((p) => (
+                      {pedidosForVendedor.map((p) => (
                         <TableRow key={p.id} className="h-11">
                           <TableCell>
                             <Checkbox
@@ -488,7 +495,7 @@ export default function CrearDespacho() {
             </Button>
             <Button
               onClick={goToStep2}
-              disabled={!selectedRutaId || selectedPedidos.size === 0}
+              disabled={!selectedVendedorId || selectedPedidos.size === 0}
               className="gap-2"
             >
               Siguiente
