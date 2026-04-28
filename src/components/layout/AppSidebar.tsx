@@ -2,6 +2,7 @@ import { useLocation, Link } from "react-router-dom";
 import {
   Inbox,
   ClipboardList,
+  BarChart3,
   Truck,
   Package,
   CornerDownLeft,
@@ -30,6 +31,7 @@ const navigation: NavSection[] = [
     items: [
       { label: "Bandeja de Pendientes", icon: Inbox, path: "/pedidos?estado=PENDIENTE", badge: 5 },
       { label: "Todos los Pedidos", icon: ClipboardList, path: "/pedidos" },
+      { label: "Planificación de Demanda", icon: BarChart3, path: "/pedidos/planificacion" },
     ],
   },
   {
