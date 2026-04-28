@@ -41,12 +41,14 @@ import { toast } from "sonner";
 
 // ==================== TYPES ====================
 
-interface Ruta {
+interface Vendedor {
   id: string;
   nombre: string;
-  vendedor: string;
-  dias: string;
-  numClientes: number;
+  canal: "Corporativo" | "Moderno" | "Tradicional" | "Directa";
+  ruta: string | null;
+  numPedidos: number;
+  totalSoles: string;
+  totalUnidades: number;
 }
 
 interface PedidoDespacho {
@@ -71,32 +73,47 @@ interface ProductoDespacho {
   unidad: string;
   necesario: number;
   lotes: Lote[];
-  asignaciones: Record<string, number>; // loteId → cantidad
+  asignaciones: Record<string, number>;
 }
 
 // ==================== MOCK DATA ====================
 
-const rutas: Ruta[] = [
-  { id: "r1", nombre: "LIM-01", vendedor: "Juan López", dias: "Lun, Mié, Vie", numClientes: 12 },
-  { id: "r2", nombre: "LIM-02", vendedor: "Pedro Soto", dias: "Mar, Jue, Sáb", numClientes: 9 },
-  { id: "r3", nombre: "PRV-01", vendedor: "María Torres", dias: "Lun a Vie", numClientes: 15 },
+const vendedores: Vendedor[] = [
+  { id: "v1", nombre: "Juan López",   canal: "Tradicional", ruta: "LIM-01", numPedidos: 5, totalSoles: "S/ 6,480", totalUnidades: 102 },
+  { id: "v2", nombre: "Pedro Soto",   canal: "Tradicional", ruta: "LIM-02", numPedidos: 4, totalSoles: "S/ 4,250", totalUnidades: 78 },
+  { id: "v3", nombre: "María Torres", canal: "Moderno",     ruta: null,     numPedidos: 3, totalSoles: "S/ 8,100", totalUnidades: 56 },
+  { id: "v4", nombre: "Lucía Vega",   canal: "Corporativo", ruta: null,     numPedidos: 2, totalSoles: "S/ 12,300", totalUnidades: 40 },
 ];
 
-const pedidosPorRuta: Record<string, PedidoDespacho[]> = {
-  r1: [
+const pedidosPorVendedor: Record<string, PedidoDespacho[]> = {
+  v1: [
     { id: "p1", numero: "PED-2026-0045", cliente: "Bodega San Martín", productos: 3, total: "S/ 480" },
     { id: "p2", numero: "PED-2026-0046", cliente: "Bodega La Estrella", productos: 2, total: "S/ 320" },
     { id: "p3", numero: "PED-2026-0047", cliente: "Tienda Rosales", productos: 4, total: "S/ 1,280" },
     { id: "p4", numero: "PED-2026-0048", cliente: "Market Express", productos: 2, total: "S/ 2,100" },
     { id: "p5", numero: "PED-2026-0049", cliente: "Bodega Carmela", productos: 5, total: "S/ 2,300" },
   ],
-  r2: [
+  v2: [
     { id: "p6", numero: "PED-2026-0044", cliente: "Supermercados Plaza", productos: 6, total: "S/ 1,850" },
     { id: "p7", numero: "PED-2026-0050", cliente: "Minimarket Sol", productos: 3, total: "S/ 740" },
   ],
-  r3: [
-    { id: "p8", numero: "PED-2026-0041", cliente: "Bodega La Cruz", productos: 2, total: "S/ 720" },
+  v3: [
+    { id: "p8", numero: "PED-2026-0041", cliente: "Plaza Vea Surco", productos: 2, total: "S/ 720" },
   ],
+  v4: [
+    { id: "p9", numero: "PED-2026-0040", cliente: "Banco Pichincha HQ", productos: 1, total: "S/ 5,400" },
+  ],
+};
+
+function getInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+}
+
+const canalColors: Record<string, string> = {
+  Corporativo: "bg-purple-100 text-purple-700",
+  Moderno: "bg-blue-100 text-blue-700",
+  Tradicional: "bg-emerald-100 text-emerald-700",
+  Directa: "bg-orange-100 text-orange-700",
 };
 
 function buildProductos(): ProductoDespacho[] {
@@ -191,7 +208,7 @@ function buildProductos(): ProductoDespacho[] {
 // ==================== STEP INDICATOR ====================
 
 function StepIndicator({ current }: { current: number }) {
-  const steps = ["Seleccionar Ruta", "Asignar Lotes", "Confirmar"];
+  const steps = ["Seleccionar Vendedor", "Asignar Lotes", "Confirmar"];
   return (
     <div className="flex items-center justify-center gap-0 mb-8">
       {steps.map((label, i) => {
@@ -241,8 +258,8 @@ export default function CrearDespacho() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
 
-  // Step 1 state
-  const [selectedRutaId, setSelectedRutaId] = useState("");
+  // Step 1 state — vendor selection
+  const [selectedVendedorId, setSelectedVendedorId] = useState("");
   const [selectedPedidos, setSelectedPedidos] = useState<Set<string>>(new Set());
 
   // Step 2 state
@@ -251,13 +268,12 @@ export default function CrearDespacho() {
   // Step 3 state
   const [verified, setVerified] = useState(false);
 
-  const selectedRuta = rutas.find((r) => r.id === selectedRutaId);
-  const pedidosForRuta = selectedRutaId ? (pedidosPorRuta[selectedRutaId] || []) : [];
+  const selectedVendedor = vendedores.find((v) => v.id === selectedVendedorId);
+  const pedidosForVendedor = selectedVendedorId ? (pedidosPorVendedor[selectedVendedorId] || []) : [];
 
-  // When ruta changes, pre-select all pedidos
-  const handleRutaChange = (rutaId: string) => {
-    setSelectedRutaId(rutaId);
-    const pedidos = pedidosPorRuta[rutaId] || [];
+  const handleVendedorSelect = (vendedorId: string) => {
+    setSelectedVendedorId(vendedorId);
+    const pedidos = pedidosPorVendedor[vendedorId] || [];
     setSelectedPedidos(new Set(pedidos.map((p) => p.id)));
   };
 
@@ -271,14 +287,14 @@ export default function CrearDespacho() {
   };
 
   const toggleAllPedidos = () => {
-    if (selectedPedidos.size === pedidosForRuta.length) {
+    if (selectedPedidos.size === pedidosForVendedor.length) {
       setSelectedPedidos(new Set());
     } else {
-      setSelectedPedidos(new Set(pedidosForRuta.map((p) => p.id)));
+      setSelectedPedidos(new Set(pedidosForVendedor.map((p) => p.id)));
     }
   };
 
-  const totalProductosSeleccionados = pedidosForRuta
+  const totalProductosSeleccionados = pedidosForVendedor
     .filter((p) => selectedPedidos.has(p.id))
     .reduce((sum, p) => sum + p.productos, 0);
 
@@ -356,7 +372,7 @@ export default function CrearDespacho() {
   };
 
   const handleConfirm = () => {
-    toast.success("Despacho DSP-2026-0019 creado. Juan López puede iniciar su ruta.");
+    toast.success(`Despacho DSP-2026-0019 creado. ${selectedVendedor?.nombre ?? "El vendedor"} puede iniciar su ruta.`);
     navigate("/entrega/despachos");
   };
 
@@ -373,53 +389,60 @@ export default function CrearDespacho() {
 
       {/* ========== STEP 1 ========== */}
       {step === 1 && (
-        <div className="max-w-2xl mx-auto space-y-6">
+        <div className="max-w-4xl mx-auto space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Ruta</CardTitle>
+              <CardTitle className="text-lg">Vendedor</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label>
-                  Ruta <span className="text-danger">*</span>
-                </Label>
-                <Select value={selectedRutaId} onValueChange={handleRutaChange}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar ruta..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {rutas.map((r) => (
-                      <SelectItem key={r.id} value={r.id}>
-                        {r.nombre} — {r.vendedor}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {vendedores.map((v) => {
+                  const selected = v.id === selectedVendedorId;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => handleVendedorSelect(v.id)}
+                      className={cn(
+                        "flex items-start gap-3 p-4 rounded-lg border-2 text-left transition-all hover:bg-slate-50",
+                        selected ? "border-[#E8A020] bg-amber-50/40" : "border-border",
+                      )}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#1E3A5F] text-white text-sm font-semibold">
+                        {getInitials(v.nombre)}
+                      </div>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-foreground">{v.nombre}</span>
+                          <span className={cn(
+                            "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            canalColors[v.canal],
+                          )}>
+                            {v.canal}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {v.canal === "Tradicional" && v.ruta ? v.ruta : "—"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                          <span>{v.numPedidos} pedidos confirmados</span>
+                          <span>·</span>
+                          <span className="font-medium text-foreground">{v.totalSoles}</span>
+                          <span>·</span>
+                          <span>{v.totalUnidades}u</span>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-
-              {selectedRuta && (
-                <div className="grid grid-cols-3 gap-4 rounded-lg bg-muted/50 p-4">
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendedor</p>
-                    <p className="text-sm font-medium mt-0.5">{selectedRuta.vendedor}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Días</p>
-                    <p className="text-sm font-medium mt-0.5">{selectedRuta.dias}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide">Clientes</p>
-                    <p className="text-sm font-medium mt-0.5">{selectedRuta.numClientes}</p>
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
 
-          {selectedRutaId && pedidosForRuta.length > 0 && (
+          {selectedVendedorId && pedidosForVendedor.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Pedidos LISTO_DESPACHO para esta ruta</CardTitle>
+                <CardTitle className="text-lg">Pedidos LISTO_DESPACHO de este vendedor</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="rounded-lg border overflow-hidden">
@@ -428,7 +451,7 @@ export default function CrearDespacho() {
                       <TableRow className="bg-slate-50 hover:bg-slate-50">
                         <TableHead className="w-10">
                           <Checkbox
-                            checked={selectedPedidos.size === pedidosForRuta.length}
+                            checked={selectedPedidos.size === pedidosForVendedor.length}
                             onCheckedChange={toggleAllPedidos}
                           />
                         </TableHead>
@@ -439,7 +462,7 @@ export default function CrearDespacho() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {pedidosForRuta.map((p) => (
+                      {pedidosForVendedor.map((p) => (
                         <TableRow key={p.id} className="h-11">
                           <TableCell>
                             <Checkbox
@@ -472,7 +495,7 @@ export default function CrearDespacho() {
             </Button>
             <Button
               onClick={goToStep2}
-              disabled={!selectedRutaId || selectedPedidos.size === 0}
+              disabled={!selectedVendedorId || selectedPedidos.size === 0}
               className="gap-2"
             >
               Siguiente
@@ -630,12 +653,16 @@ export default function CrearDespacho() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Ruta</span>
-                      <span className="font-medium">{selectedRuta?.nombre}</span>
+                      <span className="text-muted-foreground">Vendedor</span>
+                      <span className="font-medium">{selectedVendedor?.nombre}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Vendedor</span>
-                      <span className="font-medium">{selectedRuta?.vendedor}</span>
+                      <span className="text-muted-foreground">Canal</span>
+                      <span className="font-medium">{selectedVendedor?.canal}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Ruta</span>
+                      <span className="font-medium">{selectedVendedor?.ruta ?? "—"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pedidos</span>
@@ -701,12 +728,12 @@ export default function CrearDespacho() {
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Ruta</p>
-                  <p className="text-sm font-semibold mt-0.5">{selectedRuta?.nombre}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendedor</p>
+                  <p className="text-sm font-semibold mt-0.5">{selectedVendedor?.nombre}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendedor</p>
-                  <p className="text-sm font-medium mt-0.5">{selectedRuta?.vendedor}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Canal · Ruta</p>
+                  <p className="text-sm font-medium mt-0.5">{selectedVendedor?.canal} · {selectedVendedor?.ruta ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Fecha</p>

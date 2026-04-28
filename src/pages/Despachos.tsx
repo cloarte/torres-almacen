@@ -13,12 +13,13 @@ import {
   Truck,
   Eye,
   Pencil,
-  Search,
   ArrowUpDown,
   AlertTriangle,
+  Printer,
+  FilePlus,
+  CalendarIcon,
 } from "lucide-react";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -42,30 +43,39 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { CalendarIcon } from "lucide-react";
 
 // ---------- Types ----------
+
+type EstadoDespacho = "PLANIFICADO" | "OBSERVADO" | "EN_RUTA";
+
+interface GuiaProducto {
+  producto: string;
+  sku: string;
+  lotes: string;
+  condicion: string;
+  cantidad: number;
+}
 
 interface Despacho {
   id: string;
   numero: string;
   ruta: string;
   vendedor: string;
+  canal: string;
   fecha: string;
   numPedidos: number;
   totalBultos: number;
-  estado: "PLANIFICADO" | "EN_RUTA" | "COMPLETADO" | "CON_RETORNOS";
+  totalValor: string;
+  estado: EstadoDespacho;
+  productos: GuiaProducto[];
 }
 
 // ---------- Mock data ----------
@@ -76,70 +86,86 @@ const mockDespachos: Despacho[] = [
     numero: "DSP-2026-0018",
     ruta: "LIM-01",
     vendedor: "Juan López",
+    canal: "Tradicional",
     fecha: "2026-03-20",
     numPedidos: 5,
     totalBultos: 28,
+    totalValor: "6,480",
     estado: "EN_RUTA",
+    productos: [
+      { producto: "Panetón Clásico 900g", sku: "PAN-CL-900", lotes: "L-2026-001 / L-2026-003", condicion: "ÓPTIMO", cantidad: 48 },
+      { producto: "Pan de Molde Integral", sku: "PAN-MOL-INT", lotes: "L-2026-008 / L-2026-010", condicion: "ÓPTIMO", cantidad: 24 },
+      { producto: "Galleta Soda x6", sku: "GAL-SOD-6", lotes: "L-2026-020", condicion: "ÓPTIMO", cantidad: 12 },
+    ],
   },
   {
     id: "2",
     numero: "DSP-2026-0017",
     ruta: "LIM-02",
     vendedor: "Pedro Soto",
+    canal: "Tradicional",
     fecha: "2026-03-20",
     numPedidos: 4,
     totalBultos: 22,
+    totalValor: "4,250",
     estado: "PLANIFICADO",
+    productos: [
+      { producto: "Bizcocho Vainilla 500g", sku: "BIZ-VAN-500", lotes: "L-2026-015", condicion: "ÓPTIMO", cantidad: 16 },
+      { producto: "Keke Marmoleado 400g", sku: "KEK-MAR-400", lotes: "L-2026-009", condicion: "DEFECTO_ESTÉTICO", cantidad: 10 },
+    ],
   },
   {
     id: "3",
     numero: "DSP-2026-0016",
-    ruta: "PRV-01",
-    vendedor: "María Torres",
-    fecha: "2026-03-19",
-    numPedidos: 8,
-    totalBultos: 45,
-    estado: "CON_RETORNOS",
+    ruta: "LIM-03",
+    vendedor: "Carlos Ríos",
+    canal: "Tradicional",
+    fecha: "2026-03-20",
+    numPedidos: 3,
+    totalBultos: 18,
+    totalValor: "3,180",
+    estado: "OBSERVADO",
+    productos: [
+      { producto: "Panetón Clásico 900g", sku: "PAN-CL-900", lotes: "L-2026-001", condicion: "ÓPTIMO", cantidad: 15 },
+      { producto: "Keke Marmoleado 400g", sku: "KEK-MAR-400", lotes: "L-2026-009", condicion: "ÓPTIMO", cantidad: 9 },
+      { producto: "Pan de Molde Integral", sku: "PAN-MOL-INT", lotes: "L-2026-010", condicion: "ÓPTIMO", cantidad: 15 },
+    ],
   },
 ];
 
-const RUTAS = ["LIM-01", "LIM-02", "PRV-01"];
-const ESTADOS: Despacho["estado"][] = ["PLANIFICADO", "EN_RUTA", "COMPLETADO", "CON_RETORNOS"];
+const RUTAS = ["LIM-01", "LIM-02", "LIM-03", "PRV-01"];
+const ESTADOS: EstadoDespacho[] = ["PLANIFICADO", "OBSERVADO", "EN_RUTA"];
 
-const estadoStyles: Record<string, string> = {
-  PLANIFICADO: "bg-slate-100 text-slate-600",
-  EN_RUTA: "bg-blue-100 text-blue-700",
-  COMPLETADO: "bg-green-100 text-green-700",
-  CON_RETORNOS: "bg-amber-100 text-amber-700",
+const estadoStyles: Record<EstadoDespacho, string> = {
+  PLANIFICADO: "bg-blue-100 text-blue-700",
+  OBSERVADO: "bg-amber-100 text-amber-700",
+  EN_RUTA: "bg-green-100 text-green-700",
 };
 
-const estadoLabels: Record<string, string> = {
+const estadoLabels: Record<EstadoDespacho, string> = {
   PLANIFICADO: "PLANIFICADO",
+  OBSERVADO: "OBSERVADO",
   EN_RUTA: "EN RUTA",
-  COMPLETADO: "COMPLETADO",
-  CON_RETORNOS: "CON RETORNOS",
 };
 
-// Mock: pedidos listos sin despacho
 const pedidosSinDespacho = 3;
 
 // ---------- Component ----------
 
 export default function Despachos() {
   const navigate = useNavigate();
-  const [data, setData] = useState(mockDespachos);
+  const [data] = useState(mockDespachos);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [dateFilter, setDateFilter] = useState<Date | undefined>(new Date(2026, 2, 20));
   const [rutaFilter, setRutaFilter] = useState("all");
   const [estadoFilter, setEstadoFilter] = useState("all");
-  const [enRutaTarget, setEnRutaTarget] = useState<Despacho | null>(null);
+  const [printDespacho, setPrintDespacho] = useState<Despacho | null>(null);
 
   const filteredData = useMemo(() => {
     return data.filter((d) => {
       if (dateFilter) {
-        const dDate = d.fecha;
         const fDate = format(dateFilter, "yyyy-MM-dd");
-        if (dDate !== fDate) return false;
+        if (d.fecha !== fDate) return false;
       }
       if (rutaFilter !== "all" && d.ruta !== rutaFilter) return false;
       if (estadoFilter !== "all" && d.estado !== estadoFilter) return false;
@@ -160,17 +186,8 @@ export default function Despachos() {
           <span className="font-medium text-foreground">{row.original.numero}</span>
         ),
       },
-      {
-        accessorKey: "ruta",
-        header: "Ruta",
-        cell: ({ row }) => (
-          <span className="text-sm font-medium">{row.original.ruta}</span>
-        ),
-      },
-      {
-        accessorKey: "vendedor",
-        header: "Vendedor",
-      },
+      { accessorKey: "ruta", header: "Ruta", cell: ({ row }) => <span className="text-sm font-medium">{row.original.ruta}</span> },
+      { accessorKey: "vendedor", header: "Vendedor" },
       {
         accessorKey: "fecha",
         header: ({ column }) => (
@@ -179,37 +196,21 @@ export default function Despachos() {
           </button>
         ),
         cell: ({ row }) => {
-          const today = "2026-03-20";
-          const yesterday = "2026-03-19";
           const f = row.original.fecha;
-          if (f === today) return <span className="text-sm">Hoy</span>;
-          if (f === yesterday) return <span className="text-sm text-muted-foreground">Ayer</span>;
+          if (f === "2026-03-20") return <span className="text-sm">Hoy</span>;
+          if (f === "2026-03-19") return <span className="text-sm text-muted-foreground">Ayer</span>;
           return <span className="text-sm text-muted-foreground">{f}</span>;
         },
       },
-      {
-        accessorKey: "numPedidos",
-        header: "N° pedidos",
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.numPedidos} pedidos</span>
-        ),
-      },
-      {
-        accessorKey: "totalBultos",
-        header: "Total bultos",
-        cell: ({ row }) => (
-          <span className="text-sm">{row.original.totalBultos} bultos</span>
-        ),
-      },
+      { accessorKey: "numPedidos", header: "N° pedidos", cell: ({ row }) => <span className="text-sm">{row.original.numPedidos} pedidos</span> },
+      { accessorKey: "totalBultos", header: "Total bultos", cell: ({ row }) => <span className="text-sm">{row.original.totalBultos} bultos</span> },
       {
         accessorKey: "estado",
         header: "Estado",
         cell: ({ row }) => {
           const e = row.original.estado;
           return (
-            <span
-              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoStyles[e]}`}
-            >
+            <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${estadoStyles[e]}`}>
               {estadoLabels[e]}
             </span>
           );
@@ -222,31 +223,49 @@ export default function Despachos() {
           const d = row.original;
           return (
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" title="Ver detalle">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Ver detalle"
+                onClick={() => navigate(`/entrega/despachos/${d.id}`)}
+              >
                 <Eye className="h-4 w-4" />
               </Button>
+
               {d.estado === "PLANIFICADO" && (
-                <>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-blue-600 hover:text-blue-600"
-                    title="Marcar En Ruta"
-                    onClick={() => setEnRutaTarget(d)}
-                  >
-                    <Truck className="h-4 w-4" />
-                  </Button>
-                </>
+                <Button variant="ghost" size="icon" className="h-8 w-8" title="Editar">
+                  <Pencil className="h-4 w-4" />
+                </Button>
               )}
+
+              {d.estado === "OBSERVADO" && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                  title="Completar despacho"
+                  onClick={() => navigate(`/entrega/despachos/${d.id}/completar`)}
+                >
+                  <FilePlus className="h-4 w-4" />
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title="Imprimir guía"
+                onClick={() => setPrintDespacho(d)}
+              >
+                <Printer className="h-4 w-4" />
+              </Button>
             </div>
           );
         },
       },
     ],
-    [],
+    [navigate],
   );
 
   const table = useReactTable({
@@ -259,13 +278,8 @@ export default function Despachos() {
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  const handleMarkEnRuta = () => {
-    if (!enRutaTarget) return;
-    setData((prev) =>
-      prev.map((d) => (d.id === enRutaTarget.id ? { ...d, estado: "EN_RUTA" as const } : d)),
-    );
-    toast.success(`${enRutaTarget.numero} marcado EN RUTA.`);
-    setEnRutaTarget(null);
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
@@ -300,58 +314,34 @@ export default function Despachos() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
-        {/* Date picker */}
         <Popover>
           <PopoverTrigger asChild>
             <Button
               variant="outline"
-              className={cn(
-                "w-[180px] justify-start text-left font-normal",
-                !dateFilter && "text-muted-foreground",
-              )}
+              className={cn("w-[180px] justify-start text-left font-normal", !dateFilter && "text-muted-foreground")}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
               {dateFilter ? format(dateFilter, "dd/MM/yyyy") : "Fecha"}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="single"
-              selected={dateFilter}
-              onSelect={setDateFilter}
-              initialFocus
-              className={cn("p-3 pointer-events-auto")}
-            />
+            <Calendar mode="single" selected={dateFilter} onSelect={setDateFilter} initialFocus className={cn("p-3 pointer-events-auto")} />
           </PopoverContent>
         </Popover>
 
-        {/* Ruta */}
         <Select value={rutaFilter} onValueChange={setRutaFilter}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="Ruta" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[140px]"><SelectValue placeholder="Ruta" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas las rutas</SelectItem>
-            {RUTAS.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
+            {RUTAS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
           </SelectContent>
         </Select>
 
-        {/* Estado */}
         <Select value={estadoFilter} onValueChange={setEstadoFilter}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="Estado" />
-          </SelectTrigger>
+          <SelectTrigger className="w-[160px]"><SelectValue placeholder="Estado" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los estados</SelectItem>
-            {ESTADOS.map((e) => (
-              <SelectItem key={e} value={e}>
-                {estadoLabels[e]}
-              </SelectItem>
-            ))}
+            {ESTADOS.map((e) => <SelectItem key={e} value={e}>{estadoLabels[e]}</SelectItem>)}
           </SelectContent>
         </Select>
 
@@ -378,13 +368,8 @@ export default function Despachos() {
             {table.getHeaderGroups().map((hg) => (
               <TableRow key={hg.id} className="bg-slate-50 hover:bg-slate-50">
                 {hg.headers.map((header) => (
-                  <TableHead
-                    key={header.id}
-                    className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
-                  >
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                  <TableHead key={header.id} className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                   </TableHead>
                 ))}
               </TableRow>
@@ -403,10 +388,7 @@ export default function Despachos() {
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center text-muted-foreground"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center text-muted-foreground">
                   No hay despachos para los filtros seleccionados.
                 </TableCell>
               </TableRow>
@@ -415,28 +397,87 @@ export default function Despachos() {
         </Table>
 
         <div className="flex items-center justify-between px-4 py-3 border-t bg-slate-50/50">
-          <p className="text-xs text-muted-foreground">
-            {table.getFilteredRowModel().rows.length} despacho(s)
-          </p>
+          <p className="text-xs text-muted-foreground">{table.getFilteredRowModel().rows.length} despacho(s)</p>
         </div>
       </div>
 
-      {/* Mark EN_RUTA Dialog */}
-      <AlertDialog open={!!enRutaTarget} onOpenChange={() => setEnRutaTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Marcar despacho en ruta?</AlertDialogTitle>
-            <AlertDialogDescription>
-              El despacho {enRutaTarget?.numero} ({enRutaTarget?.ruta}) pasará a estado EN
-              RUTA. El vendedor será notificado.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMarkEnRuta}>Marcar en ruta</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {/* Print Guía Modal */}
+      <Dialog open={!!printDespacho} onOpenChange={(o) => !o && setPrintDespacho(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Guía de Despacho {printDespacho?.numero}</DialogTitle>
+          </DialogHeader>
+
+          {printDespacho && (
+            <div id="print-area" className="space-y-4 bg-white p-4 print:p-8">
+              {/* Header */}
+              <div className="flex items-start justify-between border-b pb-4">
+                <div>
+                  <div className="h-12 w-32 bg-[#1E3A5F] text-white rounded flex items-center justify-center font-bold">
+                    Torres SGV
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">Sistema de Gestión de Ventas</p>
+                </div>
+                <div className="text-right space-y-0.5 text-sm">
+                  <p className="font-semibold text-base">{printDespacho.numero}</p>
+                  <p><span className="text-muted-foreground">Fecha:</span> {printDespacho.fecha}</p>
+                  <p><span className="text-muted-foreground">Vendedor:</span> {printDespacho.vendedor}</p>
+                  <p><span className="text-muted-foreground">Ruta:</span> {printDespacho.ruta}</p>
+                  <p><span className="text-muted-foreground">Canal:</span> {printDespacho.canal}</p>
+                </div>
+              </div>
+
+              {/* Products table */}
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50 hover:bg-slate-50">
+                    <TableHead className="text-xs uppercase">Producto</TableHead>
+                    <TableHead className="text-xs uppercase">SKU</TableHead>
+                    <TableHead className="text-xs uppercase">Lote(s) asignado(s)</TableHead>
+                    <TableHead className="text-xs uppercase">Condición</TableHead>
+                    <TableHead className="text-xs uppercase text-right">Cantidad</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {printDespacho.productos.map((p, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="text-sm">{p.producto}</TableCell>
+                      <TableCell className="text-sm font-mono text-muted-foreground">{p.sku}</TableCell>
+                      <TableCell className="text-sm">{p.lotes}</TableCell>
+                      <TableCell className="text-sm">{p.condicion}</TableCell>
+                      <TableCell className="text-sm text-right font-medium">{p.cantidad}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Footer */}
+              <div className="border-t pt-4 space-y-3 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total bultos:</span>
+                  <span className="font-semibold">{printDespacho.totalBultos}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total valor:</span>
+                  <span className="font-semibold">S/ {printDespacho.totalValor}</span>
+                </div>
+                <div className="pt-8">
+                  <p className="text-xs text-muted-foreground mb-1">Firma del vendedor:</p>
+                  <div className="border-b border-foreground h-10" />
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintDespacho(null)}>Cerrar</Button>
+            <Button onClick={handlePrint} className="gap-2">
+              <Printer className="h-4 w-4" />
+              Descargar PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

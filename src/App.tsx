@@ -8,6 +8,7 @@ import { LotesProvider } from "@/contexts/LotesContext";
 import Pedidos from "@/pages/Pedidos";
 import Despachos from "@/pages/Despachos";
 import CrearDespacho from "@/pages/CrearDespacho";
+import CompletarDespacho from "@/pages/CompletarDespacho";
 import DespachoDetalle from "@/pages/DespachoDetalle";
 import Lotes from "@/pages/Lotes";
 import Retornos from "@/pages/Retornos";
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/pedidos" element={<Pedidos />} />
               <Route path="/entrega/despachos" element={<Despachos />} />
               <Route path="/entrega/despachos/nuevo" element={<CrearDespacho />} />
+              <Route path="/entrega/despachos/:id/completar" element={<CompletarDespacho />} />
               <Route path="/entrega/despachos/:id" element={<DespachoDetalle />} />
               <Route path="/entrega/lotes" element={<Lotes />} />
               <Route path="/entrega/retornos" element={<Retornos />} />
