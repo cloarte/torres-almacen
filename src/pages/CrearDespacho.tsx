@@ -653,12 +653,16 @@ export default function CrearDespacho() {
                 <CardContent className="space-y-4">
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Ruta</span>
-                      <span className="font-medium">{selectedRuta?.nombre}</span>
+                      <span className="text-muted-foreground">Vendedor</span>
+                      <span className="font-medium">{selectedVendedor?.nombre}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Vendedor</span>
-                      <span className="font-medium">{selectedRuta?.vendedor}</span>
+                      <span className="text-muted-foreground">Canal</span>
+                      <span className="font-medium">{selectedVendedor?.canal}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Ruta</span>
+                      <span className="font-medium">{selectedVendedor?.ruta ?? "—"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pedidos</span>
@@ -724,12 +728,12 @@ export default function CrearDespacho() {
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Ruta</p>
-                  <p className="text-sm font-semibold mt-0.5">{selectedRuta?.nombre}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendedor</p>
+                  <p className="text-sm font-semibold mt-0.5">{selectedVendedor?.nombre}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Vendedor</p>
-                  <p className="text-sm font-medium mt-0.5">{selectedRuta?.vendedor}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Canal · Ruta</p>
+                  <p className="text-sm font-medium mt-0.5">{selectedVendedor?.canal} · {selectedVendedor?.ruta ?? "—"}</p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">Fecha</p>
