@@ -372,7 +372,7 @@ export default function CrearDespacho() {
   };
 
   const handleConfirm = () => {
-    toast.success("Despacho DSP-2026-0019 creado. Juan López puede iniciar su ruta.");
+    toast.success(`Despacho DSP-2026-0019 creado. ${selectedVendedor?.nombre ?? "El vendedor"} puede iniciar su ruta.`);
     navigate("/entrega/despachos");
   };
 
