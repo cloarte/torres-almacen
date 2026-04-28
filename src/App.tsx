@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { LotesProvider } from "@/contexts/LotesContext";
 import Pedidos from "@/pages/Pedidos";
+import PlanificacionDemanda from "@/pages/PlanificacionDemanda";
 import Despachos from "@/pages/Despachos";
 import CrearDespacho from "@/pages/CrearDespacho";
 import CompletarDespacho from "@/pages/CompletarDespacho";
@@ -31,6 +32,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/pedidos?estado=PENDIENTE" replace />} />
             <Route element={<AppLayout />}>
               <Route path="/pedidos" element={<Pedidos />} />
+              <Route path="/pedidos/planificacion" element={<PlanificacionDemanda />} />
               <Route path="/entrega/despachos" element={<Despachos />} />
               <Route path="/entrega/despachos/nuevo" element={<CrearDespacho />} />
               <Route path="/entrega/despachos/:id/completar" element={<CompletarDespacho />} />
