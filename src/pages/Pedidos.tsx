@@ -714,14 +714,23 @@ export default function Pedidos() {
                             </TableCell>
                             <TableCell className="text-sm">
                               {isCarrito ? (
-                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700">CARRITO AYER</span>
+                                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-amber-100 text-amber-700">FLOTANTE</span>
                               ) : isSobrestock ? (
                                 <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-blue-100 text-blue-700">SOBRESTOCK</span>
                               ) : (
                                 <span className="font-medium">{p.numero}</span>
                               )}
                             </TableCell>
-                            <TableCell className="text-sm">{p.cliente}</TableCell>
+                            <TableCell className="text-sm">
+                              {isCarrito ? (
+                                <span>
+                                  Unidades en el camión
+                                  <span className="text-slate-500 font-medium"> · {p.productos.reduce((s: number, pr: any) => s + (pr.cantidad || 0), 0)}u</span>
+                                </span>
+                              ) : (
+                                p.cliente
+                              )}
+                            </TableCell>
                             <TableCell className="text-sm">
                               {urgenciaStyle(p.urgencia) ? (
                                 <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-bold ${urgenciaStyle(p.urgencia)}`}>{p.urgencia}</span>
