@@ -41,12 +41,14 @@ import { toast } from "sonner";
 
 // ==================== TYPES ====================
 
-interface Ruta {
+interface Vendedor {
   id: string;
   nombre: string;
-  vendedor: string;
-  dias: string;
-  numClientes: number;
+  canal: "Corporativo" | "Moderno" | "Tradicional" | "Directa";
+  ruta: string | null;
+  numPedidos: number;
+  totalSoles: string;
+  totalUnidades: number;
 }
 
 interface PedidoDespacho {
@@ -71,32 +73,47 @@ interface ProductoDespacho {
   unidad: string;
   necesario: number;
   lotes: Lote[];
-  asignaciones: Record<string, number>; // loteId → cantidad
+  asignaciones: Record<string, number>;
 }
 
 // ==================== MOCK DATA ====================
 
-const rutas: Ruta[] = [
-  { id: "r1", nombre: "LIM-01", vendedor: "Juan López", dias: "Lun, Mié, Vie", numClientes: 12 },
-  { id: "r2", nombre: "LIM-02", vendedor: "Pedro Soto", dias: "Mar, Jue, Sáb", numClientes: 9 },
-  { id: "r3", nombre: "PRV-01", vendedor: "María Torres", dias: "Lun a Vie", numClientes: 15 },
+const vendedores: Vendedor[] = [
+  { id: "v1", nombre: "Juan López",   canal: "Tradicional", ruta: "LIM-01", numPedidos: 5, totalSoles: "S/ 6,480", totalUnidades: 102 },
+  { id: "v2", nombre: "Pedro Soto",   canal: "Tradicional", ruta: "LIM-02", numPedidos: 4, totalSoles: "S/ 4,250", totalUnidades: 78 },
+  { id: "v3", nombre: "María Torres", canal: "Moderno",     ruta: null,     numPedidos: 3, totalSoles: "S/ 8,100", totalUnidades: 56 },
+  { id: "v4", nombre: "Lucía Vega",   canal: "Corporativo", ruta: null,     numPedidos: 2, totalSoles: "S/ 12,300", totalUnidades: 40 },
 ];
 
-const pedidosPorRuta: Record<string, PedidoDespacho[]> = {
-  r1: [
+const pedidosPorVendedor: Record<string, PedidoDespacho[]> = {
+  v1: [
     { id: "p1", numero: "PED-2026-0045", cliente: "Bodega San Martín", productos: 3, total: "S/ 480" },
     { id: "p2", numero: "PED-2026-0046", cliente: "Bodega La Estrella", productos: 2, total: "S/ 320" },
     { id: "p3", numero: "PED-2026-0047", cliente: "Tienda Rosales", productos: 4, total: "S/ 1,280" },
     { id: "p4", numero: "PED-2026-0048", cliente: "Market Express", productos: 2, total: "S/ 2,100" },
     { id: "p5", numero: "PED-2026-0049", cliente: "Bodega Carmela", productos: 5, total: "S/ 2,300" },
   ],
-  r2: [
+  v2: [
     { id: "p6", numero: "PED-2026-0044", cliente: "Supermercados Plaza", productos: 6, total: "S/ 1,850" },
     { id: "p7", numero: "PED-2026-0050", cliente: "Minimarket Sol", productos: 3, total: "S/ 740" },
   ],
-  r3: [
-    { id: "p8", numero: "PED-2026-0041", cliente: "Bodega La Cruz", productos: 2, total: "S/ 720" },
+  v3: [
+    { id: "p8", numero: "PED-2026-0041", cliente: "Plaza Vea Surco", productos: 2, total: "S/ 720" },
   ],
+  v4: [
+    { id: "p9", numero: "PED-2026-0040", cliente: "Banco Pichincha HQ", productos: 1, total: "S/ 5,400" },
+  ],
+};
+
+function getInitials(name: string) {
+  return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+}
+
+const canalColors: Record<string, string> = {
+  Corporativo: "bg-purple-100 text-purple-700",
+  Moderno: "bg-blue-100 text-blue-700",
+  Tradicional: "bg-emerald-100 text-emerald-700",
+  Directa: "bg-orange-100 text-orange-700",
 };
 
 function buildProductos(): ProductoDespacho[] {
